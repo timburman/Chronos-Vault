@@ -36,8 +36,7 @@ export default function Navbar() {
         <nav style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
           <a href="#how" style={{ fontSize: '0.85rem', color: 'var(--text-3)', textDecoration: 'none' }}>How it works</a>
           <a href="#why" style={{ fontSize: '0.85rem', color: 'var(--text-3)', textDecoration: 'none' }}>Why</a>
-          <a
-            href="https://github.com"
+          <a href="https://github.com/timburman/Chronos-Vault"
             target="_blank"
             rel="noopener noreferrer"
             style={{ fontSize: '0.85rem', color: 'var(--text-3)', textDecoration: 'none' }}
