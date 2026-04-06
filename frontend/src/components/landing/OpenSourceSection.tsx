@@ -21,7 +21,7 @@ export default function OpenSourceSection() {
             </p>
           </div>
           <div style={{ display: 'flex', gap: '1rem', flexShrink: 0 }}>
-            <a href="https://github.com" target="_blank" rel="noopener noreferrer">
+            <a href="https://github.com/timburman/Chronos-Vault" target="_blank" rel="noopener noreferrer">
               <button className="btn-secondary">View on GitHub</button>
             </a>
           </div>
