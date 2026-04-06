@@ -54,7 +54,7 @@ export default function Hero() {
           <Link href="/dashboard">
             <button className="btn-primary">Get Started</button>
           </Link>
-          <a href="https://github.com" target="_blank" rel="noopener noreferrer">
+          <a href="https://github.com/timburman/Chronos-Vault" target="_blank" rel="noopener noreferrer">
             <button className="btn-secondary">View on GitHub</button>
           </a>
         </motion.div>
@@ -119,9 +119,11 @@ export default function Hero() {
               <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--text-2)' }}>0x742d...3A4F</span>
             </div>
 
-            <button className="btn-accent" style={{ width: '100%', justifyContent: 'center' }}>
-              Emit Proof of Life
-            </button>
+            <Link href="/dashboard">
+              <button className="btn-accent" style={{ width: '100%', justifyContent: 'center' }}>
+                Emit Proof of Life
+              </button>
+            </Link>
           </div>
         </div>
       </motion.div>
