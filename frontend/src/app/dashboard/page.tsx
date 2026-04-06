@@ -6,6 +6,7 @@ import { useState, useCallback } from 'react';
 import { VaultFactoryABI, FACTORY_ADDRESS } from '@/utils/abi';
 import dynamic from 'next/dynamic';
 import Sidebar from '@/components/dashboard/Sidebar';
+import Link from 'next/link';
 
 const Overview         = dynamic(() => import('@/components/dashboard/Overview'),         { ssr: false });
 const Assets           = dynamic(() => import('@/components/dashboard/Assets'),           { ssr: false });
@@ -63,23 +64,36 @@ export default function Dashboard() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      {/* Top bar */}
-      <div style={{
-        height: '52px',
-        background: 'var(--bg-alt)',
+    <div style={{ height: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* Top nav — matches landing page style */}
+      <header style={{
+        height: '60px',
+        flexShrink: 0,
+        background: 'rgba(240, 235, 227, 0.92)',
+        backdropFilter: 'blur(12px)',
         borderBottom: '1px solid var(--border)',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'flex-end',
-        padding: '0 1.5rem',
-        flexShrink: 0,
+        justifyContent: 'space-between',
+        padding: '0 2rem',
+        zIndex: 40,
       }}>
-        <ConnectButton showBalance={false} accountStatus="address" chainStatus="none" />
-      </div>
+        <Link href="/" style={{ textDecoration: 'none' }}>
+          <span style={{ fontFamily: 'var(--font-serif), DM Serif Display, serif', fontSize: '1.1rem', color: 'var(--text-1)', letterSpacing: '-0.01em' }}>
+            Chronos Vault
+          </span>
+        </Link>
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+          <a href="/#how"   style={{ fontSize: '0.85rem', color: 'var(--text-3)', textDecoration: 'none' }}>How it works</a>
+          <a href="/#why"   style={{ fontSize: '0.85rem', color: 'var(--text-3)', textDecoration: 'none' }}>Why</a>
+          <a href="https://github.com/timburman/Chronos-Vault" target="_blank" rel="noopener noreferrer"
+             style={{ fontSize: '0.85rem', color: 'var(--text-3)', textDecoration: 'none' }}>GitHub</a>
+          <ConnectButton showBalance={false} accountStatus="address" chainStatus="none" />
+        </nav>
+      </header>
 
-      {/* Body */}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+      {/* Body — fills remaining height exactly */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Sidebar */}
         <Sidebar
           active={section}
@@ -90,15 +104,9 @@ export default function Dashboard() {
 
         {/* Main content */}
         <main style={{ flex: 1, overflowY: 'auto', padding: '2.5rem 3rem' }}>
-          {/* No vault yet */}
-          {!hasVault && !isBeneficiary && (
+          {/* No vault yet — show create form (both new users and beneficiary-only users) */}
+          {!hasVault && section !== 'claim' && (
             <CreateVaultModal onSuccess={handleVaultCreated} />
-          )}
-
-          {!hasVault && isBeneficiary && section !== 'claim' && (
-            <div style={{ marginBottom: '1.5rem', padding: '1rem 1.25rem', background: 'var(--accent-bg)', border: '1px solid var(--border-2)', borderRadius: '8px', fontSize: '0.87rem', color: 'var(--accent)' }}>
-              You are designated as a beneficiary. Navigate to <strong>Claim Inheritance</strong> in the sidebar.
-            </div>
           )}
 
           {/* Owner sections */}
