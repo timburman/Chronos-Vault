@@ -1,6 +1,6 @@
 'use client';
 
-type Section = 'overview' | 'assets' | 'deposit' | 'withdraw' | 'settings' | 'claim';
+type Section = 'overview' | 'assets' | 'deposit' | 'withdraw' | 'activity' | 'guardians' | 'settings' | 'claim';
 
 interface Props {
   active: Section;
@@ -10,11 +10,13 @@ interface Props {
 }
 
 const ownerNav = [
-  { id: 'overview',  label: 'Overview' },
-  { id: 'assets',    label: 'Assets' },
-  { id: 'deposit',   label: 'Deposit' },
-  { id: 'withdraw',  label: 'Withdraw' },
-  { id: 'settings',  label: 'Settings' },
+  { id: 'overview',  label: 'Overview',   icon: '📊' },
+  { id: 'assets',    label: 'Assets',     icon: '💎' },
+  { id: 'deposit',   label: 'Deposit',    icon: '⬇️' },
+  { id: 'withdraw',  label: 'Withdraw',   icon: '⬆️' },
+  { id: 'activity',  label: 'Activity',   icon: '📜' },
+  { id: 'guardians', label: 'Guardians',  icon: '🛡️' },
+  { id: 'settings',  label: 'Settings',   icon: '⚙️' },
 ] as const;
 
 export default function Sidebar({ active, onChange, isOwner, isBeneficiary }: Props) {
@@ -28,8 +30,6 @@ export default function Sidebar({ active, onChange, isOwner, isBeneficiary }: Pr
         display: 'flex',
         flexDirection: 'column',
         padding: '1.25rem 1rem',
-        // ↓ This is the key: sidebar must not control its own height,
-        //   it inherits 100% from the flex parent which has overflow:hidden
         overflowY: 'auto',
         gap: '0.25rem',
       }}
@@ -46,6 +46,7 @@ export default function Sidebar({ active, onChange, isOwner, isBeneficiary }: Pr
               className={`nav-link ${active === item.id ? 'active' : ''}`}
               onClick={() => onChange(item.id)}
             >
+              <span style={{ fontSize: '0.9rem', width: '20px', textAlign: 'center' }}>{item.icon}</span>
               {item.label}
             </button>
           ))}
@@ -62,6 +63,7 @@ export default function Sidebar({ active, onChange, isOwner, isBeneficiary }: Pr
             className={`nav-link ${active !== 'claim' ? 'active' : ''}`}
             onClick={() => onChange('overview')}
           >
+            <span style={{ fontSize: '0.9rem', width: '20px', textAlign: 'center' }}>🔨</span>
             Initialize Vault
           </button>
         </>
@@ -77,6 +79,7 @@ export default function Sidebar({ active, onChange, isOwner, isBeneficiary }: Pr
             className={`nav-link ${active === 'claim' ? 'active' : ''}`}
             onClick={() => onChange('claim')}
           >
+            <span style={{ fontSize: '0.9rem', width: '20px', textAlign: 'center' }}>🏛️</span>
             Claim Inheritance
           </button>
         </>
@@ -88,11 +91,13 @@ export default function Sidebar({ active, onChange, isOwner, isBeneficiary }: Pr
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem', marginTop: '0.5rem' }}>
         <a href="https://github.com/timburman/Chronos-Vault" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
           <button className="nav-link" style={{ fontSize: '0.78rem' }}>
+            <span style={{ fontSize: '0.9rem', width: '20px', textAlign: 'center' }}>📁</span>
             GitHub
           </button>
         </a>
         <a href="/" style={{ textDecoration: 'none' }}>
           <button className="nav-link" style={{ fontSize: '0.78rem' }}>
+            <span style={{ fontSize: '0.9rem', width: '20px', textAlign: 'center' }}>🏠</span>
             Back to Home
           </button>
         </a>

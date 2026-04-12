@@ -1,36 +1,26 @@
 'use client';
 
-import { useReadContract, useBalance } from 'wagmi';
-import { useAccount } from 'wagmi';
+import { useReadContract } from 'wagmi';
 import { VaultABI, ERC20ABI } from '@/utils/abi';
 import { formatEther, formatUnits } from 'viem';
 import { useState, useEffect } from 'react';
 import { fetchETHPrice } from '@/utils/price';
+import { autoDetectTokens, fetchNFTs, isAlchemyAvailable } from '@/utils/alchemy';
+import type { AlchemyNFT } from '@/utils/alchemy';
 
 interface Props { vaultAddress: `0x${string}` }
 
-// Common ERC-20 tokens — extends with tracked ones added by user
-// For local Anvil we rely on user-added tokens; these are mainnet references shown as examples
-const KNOWN_TOKENS: { symbol: string; address: `0x${string}`; decimals: number }[] = [
-  // Uncomment and fill your testnet deployed tokens here
-  // { symbol: 'USDC', address: '0x...', decimals: 6 },
-];
-
-interface TokenData {
-  address: `0x${string}`;
-  symbol?: string;
-  name?: string;
-  decimals?: number;
-  balance?: bigint;
-}
+// ─── Token Row Component ────────────────────────────────────────────────────
 
 function TokenRow({
   vaultAddress,
   tokenAddress,
+  logo,
   onRemove,
 }: {
   vaultAddress: `0x${string}`;
   tokenAddress: `0x${string}`;
+  logo?: string | null;
   onRemove: () => void;
 }) {
   const { data: bal }      = useReadContract({ address: tokenAddress, abi: ERC20ABI, functionName: 'balanceOf', args: [vaultAddress] });
@@ -45,16 +35,21 @@ function TokenRow({
       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       padding: '0.875rem 0', borderBottom: '1px solid var(--border)',
     }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-        <div style={{ fontWeight: 500, fontSize: '0.9rem', color: 'var(--text-1)' }}>
-          {(name as string) || '…'}
-          <span style={{ color: 'var(--text-4)', fontWeight: 400, marginLeft: '0.375rem' }}>
-            {(symbol as string) || ''}
-          </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        {logo && (
+          <img src={logo} alt="" style={{ width: '28px', height: '28px', borderRadius: '50%' }} />
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+          <div style={{ fontWeight: 500, fontSize: '0.9rem', color: 'var(--text-1)' }}>
+            {(name as string) || '…'}
+            <span style={{ color: 'var(--text-4)', fontWeight: 400, marginLeft: '0.375rem' }}>
+              {(symbol as string) || ''}
+            </span>
+          </div>
+          <code style={{ fontSize: '0.72rem', color: 'var(--text-4)' }}>
+            {tokenAddress.slice(0, 12)}…{tokenAddress.slice(-6)}
+          </code>
         </div>
-        <code style={{ fontSize: '0.72rem', color: 'var(--text-4)' }}>
-          {tokenAddress.slice(0, 12)}…{tokenAddress.slice(-6)}
-        </code>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
         <div style={{ textAlign: 'right' }}>
@@ -79,14 +74,62 @@ function TokenRow({
   );
 }
 
+// ─── NFT Card Component ────────────────────────────────────────────────────
+
+function NFTCard({ nft }: { nft: AlchemyNFT }) {
+  const imageUrl = nft.image?.thumbnailUrl || nft.image?.cachedUrl || nft.image?.originalUrl;
+  return (
+    <div style={{
+      background: 'var(--bg)',
+      border: '1px solid var(--border)',
+      borderRadius: '10px',
+      overflow: 'hidden',
+      transition: 'transform 0.12s, box-shadow 0.12s',
+    }}>
+      <div style={{
+        width: '100%', aspectRatio: '1', background: 'var(--surface-2)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        overflow: 'hidden',
+      }}>
+        {imageUrl ? (
+          <img src={imageUrl} alt={nft.name || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <span style={{ fontSize: '2rem' }}>🖼️</span>
+        )}
+      </div>
+      <div style={{ padding: '0.75rem' }}>
+        <div style={{ fontSize: '0.82rem', fontWeight: 500, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {nft.name || `#${nft.tokenId}`}
+        </div>
+        <div style={{ fontSize: '0.7rem', color: 'var(--text-4)', marginTop: '0.15rem' }}>
+          {nft.contract.name || nft.contract.address.slice(0, 8)}…
+        </div>
+        <div style={{ display: 'flex', gap: '0.375rem', marginTop: '0.5rem' }}>
+          <span className="pill-accent" style={{ fontSize: '0.62rem' }}>{nft.tokenType}</span>
+          {nft.balance && Number(nft.balance) > 1 && (
+            <span className="pill-success" style={{ fontSize: '0.62rem' }}>×{nft.balance}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Component ────────────────────────────────────────────────────────
+
 export default function Assets({ vaultAddress }: Props) {
   const [ethPrice, setEthPrice] = useState(0);
   const [tokenInput, setTokenInput] = useState('');
   const [error, setError] = useState('');
-  const [trackedTokens, setTrackedTokens] = useState<`0x${string}`[]>(() => {
+  const [detecting, setDetecting] = useState(false);
+  const [detectMsg, setDetectMsg] = useState('');
+  const [nfts, setNfts] = useState<AlchemyNFT[]>([]);
+  const [nftsLoading, setNftsLoading] = useState(false);
+
+  const [trackedTokens, setTrackedTokens] = useState<{ address: `0x${string}`; logo?: string | null }[]>(() => {
     if (typeof window === 'undefined') return [];
     try {
-      const saved = localStorage.getItem(`cv_tokens_${vaultAddress}`);
+      const saved = localStorage.getItem(`cv_tokens_v2_${vaultAddress}`);
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
@@ -100,6 +143,12 @@ export default function Assets({ vaultAddress }: Props) {
   const ethBal = balance ? formatEther(balance as bigint) : '0';
   const usdBal = (parseFloat(ethBal) * ethPrice).toFixed(2);
 
+  // Persist tracked tokens
+  const updateTracked = (updated: { address: `0x${string}`; logo?: string | null }[]) => {
+    setTrackedTokens(updated);
+    try { localStorage.setItem(`cv_tokens_v2_${vaultAddress}`, JSON.stringify(updated)); } catch {}
+  };
+
   const addToken = () => {
     setError('');
     const addr = tokenInput.trim() as `0x${string}`;
@@ -107,21 +156,58 @@ export default function Assets({ vaultAddress }: Props) {
       setError('Enter a valid 0x… contract address (42 chars).');
       return;
     }
-    if (trackedTokens.includes(addr)) {
+    if (trackedTokens.some((t) => t.address.toLowerCase() === addr.toLowerCase())) {
       setError('Token already tracked.');
       return;
     }
-    const updated = [...trackedTokens, addr];
-    setTrackedTokens(updated);
-    try { localStorage.setItem(`cv_tokens_${vaultAddress}`, JSON.stringify(updated)); } catch {}
+    updateTracked([...trackedTokens, { address: addr }]);
     setTokenInput('');
   };
 
   const removeToken = (addr: `0x${string}`) => {
-    const updated = trackedTokens.filter((t) => t !== addr);
-    setTrackedTokens(updated);
-    try { localStorage.setItem(`cv_tokens_${vaultAddress}`, JSON.stringify(updated)); } catch {}
+    updateTracked(trackedTokens.filter((t) => t.address !== addr));
   };
+
+  // Alchemy auto-detect
+  const handleAutoDetect = async () => {
+    setDetecting(true);
+    setDetectMsg('');
+    try {
+      const detected = await autoDetectTokens(vaultAddress);
+      const existingSet = new Set(trackedTokens.map((t) => t.address.toLowerCase()));
+      const newTokens = detected.filter((d) => !existingSet.has(d.address.toLowerCase()));
+
+      if (newTokens.length > 0) {
+        const merged = [
+          ...trackedTokens,
+          ...newTokens.map((t) => ({ address: t.address, logo: t.logo })),
+        ];
+        updateTracked(merged);
+        setDetectMsg(`Found ${newTokens.length} new token${newTokens.length > 1 ? 's' : ''}!`);
+      } else {
+        setDetectMsg('No new tokens found.');
+      }
+    } catch {
+      setDetectMsg('Auto-detect failed. Check your Alchemy API key.');
+    }
+    setDetecting(false);
+  };
+
+  // NFT fetch
+  const loadNFTs = async () => {
+    setNftsLoading(true);
+    try {
+      const result = await fetchNFTs(vaultAddress);
+      setNfts(result);
+    } catch {
+      setNfts([]);
+    }
+    setNftsLoading(false);
+  };
+
+  useEffect(() => {
+    if (isAlchemyAvailable()) loadNFTs();
+  }, [vaultAddress]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -143,12 +229,36 @@ export default function Assets({ vaultAddress }: Props) {
         </div>
       </div>
 
-      {/* Tracked ERC20 Tokens */}
+      {/* ERC-20 Tokens */}
       <div className="card">
-        <div className="label" style={{ marginBottom: '0.5rem' }}>ERC-20 Tokens</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+          <div className="label" style={{ margin: 0 }}>ERC-20 Tokens</div>
+          {isAlchemyAvailable() && (
+            <button
+              className="btn-secondary"
+              style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}
+              onClick={handleAutoDetect}
+              disabled={detecting}
+            >
+              {detecting ? 'Scanning…' : '✨ Auto-Detect'}
+            </button>
+          )}
+        </div>
+
+        {detectMsg && (
+          <div style={{
+            fontSize: '0.78rem', padding: '0.5rem 0.75rem', borderRadius: '6px', marginBottom: '0.75rem',
+            background: detectMsg.includes('Found') ? 'var(--success-bg)' : 'var(--surface-2)',
+            color: detectMsg.includes('Found') ? 'var(--success)' : 'var(--text-3)',
+          }}>
+            {detectMsg}
+          </div>
+        )}
+
         <p style={{ fontSize: '0.82rem', color: 'var(--text-4)', marginBottom: '1rem', lineHeight: 1.6 }}>
-          Paste a token's contract address to check its balance inside the vault. Token info and balance load automatically.
-          Tracked tokens persist per vault.
+          {isAlchemyAvailable()
+            ? 'Click "Auto-Detect" to scan for tokens, or manually paste a contract address below.'
+            : 'Paste a token\'s contract address to check its balance. Set NEXT_PUBLIC_ALCHEMY_KEY for auto-detection.'}
         </p>
 
         {trackedTokens.length === 0 ? (
@@ -157,8 +267,8 @@ export default function Assets({ vaultAddress }: Props) {
           </div>
         ) : (
           <div style={{ borderTop: '1px solid var(--border)' }}>
-            {trackedTokens.map((addr) => (
-              <TokenRow key={addr} vaultAddress={vaultAddress} tokenAddress={addr} onRemove={() => removeToken(addr)} />
+            {trackedTokens.map((t) => (
+              <TokenRow key={t.address} vaultAddress={vaultAddress} tokenAddress={t.address} logo={t.logo} onRemove={() => removeToken(t.address)} />
             ))}
           </div>
         )}
@@ -177,6 +287,40 @@ export default function Assets({ vaultAddress }: Props) {
           </button>
         </div>
         {error && <p style={{ color: 'var(--danger)', fontSize: '0.78rem', marginTop: '0.5rem' }}>{error}</p>}
+      </div>
+
+      {/* NFT Gallery */}
+      <div className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+          <div className="label" style={{ margin: 0 }}>NFT Collection</div>
+          <button
+            className="btn-secondary"
+            style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}
+            onClick={loadNFTs}
+            disabled={nftsLoading || !isAlchemyAvailable()}
+          >
+            {nftsLoading ? 'Loading…' : 'Refresh NFTs'}
+          </button>
+        </div>
+
+        {!isAlchemyAvailable() ? (
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-4)', lineHeight: 1.6 }}>
+            Set NEXT_PUBLIC_ALCHEMY_KEY in your .env to view NFTs held by this vault.
+          </p>
+        ) : nfts.length === 0 ? (
+          <div style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--text-4)', fontSize: '0.85rem', borderTop: '1px solid var(--border)' }}>
+            {nftsLoading ? 'Scanning vault for NFTs…' : 'No NFTs found in this vault.'}
+          </div>
+        ) : (
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+            gap: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1rem',
+          }}>
+            {nfts.map((nft, i) => (
+              <NFTCard key={`${nft.contract.address}-${nft.tokenId}-${i}`} nft={nft} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
