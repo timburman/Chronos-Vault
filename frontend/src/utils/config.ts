@@ -5,5 +5,5 @@ export const wagmiConfig = getDefaultConfig({
   appName: 'Chronos Vault',
   projectId: 'chronos-vault-local',
   chains: [foundry],
-  ssr: false,
+  ssr: true,
 });

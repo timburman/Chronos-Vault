@@ -89,6 +89,11 @@ export const VaultABI = [
   { type: 'function', name: 'MAX_GUARDIANS',  inputs: [], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
   { type: 'function', name: 'BENEFICIARY_CHANGE_DELAY', inputs: [], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
   { type: 'function', name: 'MIN_TIMEOUT',    inputs: [], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
+  {
+    type: 'function', name: 'getGuardians',
+    inputs: [], outputs: [{ type: 'address[]' }],
+    stateMutability: 'view',
+  },
 
   // ─── Write: Deposits ────────────────────────────────────────────
   { type: 'function', name: 'depositETH',    inputs: [], outputs: [], stateMutability: 'payable' },

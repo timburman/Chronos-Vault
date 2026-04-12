@@ -4,320 +4,197 @@ import { useWriteContract, useReadContract } from 'wagmi';
 import { VaultABI, ERC20ABI, ERC721ABI } from '@/utils/abi';
 import { formatEther, parseEther, parseUnits, formatUnits } from 'viem';
 import { useState, useEffect } from 'react';
-import { fetchETHPrice } from '@/utils/price';
+import toast from 'react-hot-toast';
 
 interface Props { vaultAddress: `0x${string}` }
-
 type WithdrawTab = 'eth' | 'erc20' | 'nft';
 
-const ETH_PERCENT_PRESETS = [
-  { label: '25%', pct: 0.25 },
-  { label: '50%', pct: 0.50 },
-  { label: '75%', pct: 0.75 },
-  { label: 'Max', pct: 1.00 },
-] as const;
+interface TrackedToken { address: `0x${string}`; logo?: string | null; }
 
 export default function Withdraw({ vaultAddress }: Props) {
   const [tab, setTab] = useState<WithdrawTab>('eth');
+
+  // ETH
   const [ethAmount, setEthAmount] = useState('');
-  const [tokenAddress, setTokenAddress] = useState('');
+  const { data: balance, refetch } = useReadContract({ address: vaultAddress, abi: VaultABI, functionName: 'vaultBalance' });
+  const ethBal = balance ? parseFloat(formatEther(balance as bigint)) : 0;
+
+  // ERC-20
+  const [selectedToken, setSelectedToken] = useState<`0x${string}` | null>(null);
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [customTokenAddr, setCustomTokenAddr] = useState('');
   const [tokenAmount, setTokenAmount] = useState('');
-  const [tokenDecimals, setTokenDecimals] = useState('18');
+
+  const activeTokenAddr = selectedToken || (customTokenAddr.length === 42 ? customTokenAddr as `0x${string}` : undefined);
+  const { data: tokenSymbol } = useReadContract({ address: activeTokenAddr, abi: ERC20ABI, functionName: 'symbol', query: { enabled: !!activeTokenAddr } });
+  const { data: tokenName } = useReadContract({ address: activeTokenAddr, abi: ERC20ABI, functionName: 'name', query: { enabled: !!activeTokenAddr } });
+  const { data: tokenDecimals } = useReadContract({ address: activeTokenAddr, abi: ERC20ABI, functionName: 'decimals', query: { enabled: !!activeTokenAddr } });
+  const { data: vaultTokenBal } = useReadContract({ address: activeTokenAddr, abi: ERC20ABI, functionName: 'balanceOf', args: [vaultAddress], query: { enabled: !!activeTokenAddr } });
+
+  // NFT
   const [nftAddress, setNftAddress] = useState('');
   const [nftTokenId, setNftTokenId] = useState('');
   const [nftType, setNftType] = useState<'erc721' | 'erc1155'>('erc721');
   const [nftAmount, setNftAmount] = useState('1');
-  const [ethStatus, setEthStatus]   = useState<'idle' | 'ok' | 'err'>('idle');
-  const [erc20Status, setErc20Status] = useState<'idle' | 'ok' | 'err'>('idle');
-  const [nftStatus, setNftStatus]   = useState<'idle' | 'ok' | 'err'>('idle');
-  const [ethPrice, setEthPrice] = useState(0);
+  const { data: nftName } = useReadContract({ address: nftAddress.length === 42 ? nftAddress as `0x${string}` : undefined, abi: ERC721ABI, functionName: 'name', query: { enabled: nftAddress.length === 42 } });
 
-  useEffect(() => { fetchETHPrice().then(setEthPrice); }, []);
-
-  const { data: balance, refetch } = useReadContract({
-    address: vaultAddress, abi: VaultABI, functionName: 'vaultBalance',
-  });
-  const { data: tokenBal } = useReadContract({
-    address: tokenAddress.length === 42 ? tokenAddress as `0x${string}` : undefined,
-    abi: ERC20ABI, functionName: 'balanceOf', args: [vaultAddress],
-    query: { enabled: tokenAddress.length === 42 },
-  });
-  const { data: tokenSymbol } = useReadContract({
-    address: tokenAddress.length === 42 ? tokenAddress as `0x${string}` : undefined,
-    abi: ERC20ABI, functionName: 'symbol',
-    query: { enabled: tokenAddress.length === 42 },
-  });
-  const { data: tokenName } = useReadContract({
-    address: tokenAddress.length === 42 ? tokenAddress as `0x${string}` : undefined,
-    abi: ERC20ABI, functionName: 'name',
-    query: { enabled: tokenAddress.length === 42 },
-  });
-  const { data: tokenDecimalsData } = useReadContract({
-    address: tokenAddress.length === 42 ? tokenAddress as `0x${string}` : undefined,
-    abi: ERC20ABI, functionName: 'decimals',
-    query: { enabled: tokenAddress.length === 42 },
-  });
-
-  // NFT metadata
-  const { data: nftName } = useReadContract({
-    address: nftAddress.length === 42 ? nftAddress as `0x${string}` : undefined,
-    abi: ERC721ABI, functionName: 'name',
-    query: { enabled: nftAddress.length === 42 },
-  });
-
+  // Tracked tokens
+  const [trackedTokens, setTrackedTokens] = useState<TrackedToken[]>([]);
   useEffect(() => {
-    if (tokenDecimalsData !== undefined) setTokenDecimals(String(tokenDecimalsData));
-  }, [tokenDecimalsData]);
+    if (typeof window === 'undefined') return;
+    try { const saved = localStorage.getItem(`cv_tokens_v2_${vaultAddress}`); if (saved) setTrackedTokens(JSON.parse(saved)); } catch {}
+  }, [vaultAddress]);
 
   const { writeContractAsync } = useWriteContract();
-
-  const ethBal = balance ? formatEther(balance as bigint) : '0';
-  const ethUsd = (parseFloat(ethBal) * ethPrice).toFixed(2);
-  const selectedUsd = ethAmount && ethPrice ? (parseFloat(ethAmount) * ethPrice).toFixed(2) : null;
-  const decimals = parseInt(tokenDecimals) || 18;
-  const tokenBalFormatted = tokenBal ? parseFloat(formatUnits(tokenBal as bigint, decimals)) : null;
-
-  const applyPct = (pct: number) => {
-    const raw = parseFloat(ethBal) * pct;
-    setEthAmount(raw.toFixed(6));
-  };
+  const decimals = tokenDecimals !== undefined ? Number(tokenDecimals) : 18;
+  const vaultTokenFormatted = vaultTokenBal ? parseFloat(formatUnits(vaultTokenBal as bigint, decimals)) : null;
 
   const handleWithdrawETH = async () => {
+    const tid = toast.loading('Withdrawing ETH...');
     try {
-      setEthStatus('idle');
       await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'withdraw', args: [parseEther(ethAmount)] });
-      setEthStatus('ok');
-      setEthAmount('');
-      setTimeout(refetch, 2500);
-    } catch { setEthStatus('err'); }
+      toast.success(`${ethAmount} ETH withdrawn`, { id: tid });
+      setEthAmount(''); setTimeout(refetch, 2500);
+    } catch { toast.error('Withdrawal failed', { id: tid }); }
   };
 
   const handleWithdrawERC20 = async () => {
-    const token = tokenAddress.trim() as `0x${string}`;
+    if (!activeTokenAddr || !tokenAmount) return;
+    const tid = toast.loading('Withdrawing token...');
     try {
-      setErc20Status('idle');
-      await writeContractAsync({
-        address: vaultAddress, abi: VaultABI, functionName: 'withdrawERC20',
-        args: [token, parseUnits(tokenAmount, decimals)],
-      });
-      setErc20Status('ok');
+      await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'withdrawERC20', args: [activeTokenAddr, parseUnits(tokenAmount, decimals)] });
+      toast.success(`${tokenAmount} ${tokenSymbol || 'tokens'} withdrawn`, { id: tid });
       setTokenAmount('');
-    } catch { setErc20Status('err'); }
+    } catch { toast.error('Withdrawal failed', { id: tid }); }
   };
 
   const handleWithdrawNFT = async () => {
     if (!nftAddress || !nftTokenId) return;
-    const nftAddr = nftAddress.trim() as `0x${string}`;
+    const addr = nftAddress.trim() as `0x${string}`;
     const tokenId = BigInt(nftTokenId);
+    const tid = toast.loading('Withdrawing NFT...');
     try {
-      setNftStatus('idle');
       if (nftType === 'erc721') {
-        await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'withdrawERC721', args: [nftAddr, tokenId] });
+        await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'withdrawERC721', args: [addr, tokenId] });
       } else {
-        await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'withdrawERC1155', args: [nftAddr, tokenId, BigInt(nftAmount)] });
+        await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'withdrawERC1155', args: [addr, tokenId, BigInt(nftAmount)] });
       }
-      setNftStatus('ok');
+      toast.success('NFT withdrawn', { id: tid });
       setNftTokenId('');
-    } catch { setNftStatus('err'); }
+    } catch { toast.error('Withdrawal failed', { id: tid }); }
   };
 
-  const tabs: { id: WithdrawTab; label: string }[] = [
-    { id: 'eth',   label: 'ETH' },
-    { id: 'erc20', label: 'ERC-20' },
-    { id: 'nft',   label: 'NFT' },
-  ];
+  const tabs: { id: WithdrawTab; label: string }[] = [{ id: 'eth', label: 'ETH' }, { id: 'erc20', label: 'Token' }, { id: 'nft', label: 'NFT' }];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      <h1 style={{ fontFamily: 'var(--font-serif), serif', fontSize: '1.6rem', color: 'var(--text-1)' }}>Withdraw</h1>
+    <div className="dashboard-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.4rem', color: 'var(--text-1)' }}>Withdraw</h1>
 
-      {/* Balance banner */}
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px',
-        padding: '0.875rem 1.25rem',
-      }}>
-        <div>
-          <div style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-4)', marginBottom: '0.2rem' }}>
-            Available to Withdraw
-          </div>
-          <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-1)' }}>
-            {parseFloat(ethBal).toFixed(6)} ETH
-            {ethPrice > 0 && <span style={{ fontWeight: 400, color: 'var(--text-3)', fontSize: '0.85rem', marginLeft: '0.625rem' }}>≈ ${ethUsd}</span>}
-          </div>
-        </div>
-      </div>
-
-      {/* Tab bar */}
-      <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--surface)', borderRadius: '8px', padding: '0.25rem' }}>
+      <div style={{ display: 'flex', gap: '0.2rem', background: 'var(--surface)', borderRadius: '8px', padding: '0.2rem' }}>
         {tabs.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            style={{
-              flex: 1, padding: '0.5rem', borderRadius: '6px', fontSize: '0.82rem', fontWeight: 500,
-              cursor: 'pointer', border: 'none', transition: 'all 0.12s',
-              background: tab === t.id ? 'var(--bg)' : 'transparent',
-              color: tab === t.id ? 'var(--text-1)' : 'var(--text-3)',
-              boxShadow: tab === t.id ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
-            }}
-          >
-            {t.label}
-          </button>
+          <button key={t.id} onClick={() => setTab(t.id)} style={{
+            flex: 1, padding: '0.45rem', borderRadius: '6px', fontSize: '0.82rem', fontWeight: 500, cursor: 'pointer', border: 'none', transition: 'all 0.12s',
+            background: tab === t.id ? 'var(--bg)' : 'transparent', color: tab === t.id ? 'var(--text-1)' : 'var(--text-3)',
+            boxShadow: tab === t.id ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
+          }}>{t.label}</button>
         ))}
       </div>
 
-      {/* ETH Tab */}
       {tab === 'eth' && (
         <div className="card">
-          <div className="label" style={{ marginBottom: '0.25rem' }}>Withdraw ETH</div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-3)', marginBottom: '1.25rem', lineHeight: 1.65 }}>
-            Send a partial or full ETH balance back to your wallet. Works even when the vault is paused.
-          </p>
-
-          <div style={{ marginBottom: '1rem' }}>
-            <div className="label" style={{ marginBottom: '0.5rem' }}>Quick withdraw</div>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              {ETH_PERCENT_PRESETS.map(({ label, pct }) => {
-                const val = (parseFloat(ethBal) * pct).toFixed(6);
-                return (
-                  <button
-                    key={label} onClick={() => applyPct(pct)}
-                    style={{
-                      flex: 1, padding: '0.4rem 0', borderRadius: '6px', fontSize: '0.82rem', cursor: 'pointer',
-                      border: `1px solid ${ethAmount === val ? 'var(--text-1)' : 'var(--border)'}`,
-                      background: ethAmount === val ? 'var(--text-1)' : 'var(--bg)',
-                      color: ethAmount === val ? 'var(--bg)' : 'var(--text-3)',
-                      fontWeight: 500, transition: 'all 0.12s',
-                    }}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
+          <div className="label">Withdraw ETH</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', marginTop: '0.25rem' }}>
+            <span style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>Vault balance</span>
+            <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-1)' }}>{ethBal.toFixed(4)} ETH</span>
           </div>
-
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '0.75rem' }}>
+            {[{ l: '25%', p: 0.25 }, { l: '50%', p: 0.5 }, { l: '75%', p: 0.75 }, { l: 'Max', p: 1 }].map(({ l, p }) => (
+              <button key={l} onClick={() => setEthAmount((ethBal * p).toFixed(6))} style={{
+                flex: 1, padding: '0.35rem', borderRadius: '5px', fontSize: '0.78rem', fontWeight: 500, cursor: 'pointer', transition: 'all 0.12s',
+                border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-3)',
+              }}>{l}</button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
             <div style={{ flex: 1 }}>
-              <label className="label">Custom amount (ETH)</label>
+              <label className="label">Amount (ETH)</label>
               <input className="input-field" type="number" min="0" step="any" placeholder="0.00" value={ethAmount} onChange={(e) => setEthAmount(e.target.value)} />
-              {selectedUsd && <div style={{ fontSize: '0.75rem', color: 'var(--text-4)', marginTop: '0.3rem' }}>≈ ${selectedUsd} USD</div>}
             </div>
-            <button className="btn-primary" disabled={!ethAmount || parseFloat(ethBal) === 0} onClick={handleWithdrawETH} style={{ flexShrink: 0 }}>
-              Withdraw
-            </button>
+            <button className="btn-primary" disabled={!ethAmount || ethBal === 0} onClick={handleWithdrawETH} style={{ flexShrink: 0 }}>Withdraw</button>
           </div>
-          {ethStatus === 'ok'  && <p style={{ color: 'var(--success)', fontSize: '0.82rem', marginTop: '0.75rem' }}>Withdrawn successfully.</p>}
-          {ethStatus === 'err' && <p style={{ color: 'var(--danger)', fontSize: '0.82rem', marginTop: '0.75rem' }}>Transaction failed.</p>}
         </div>
       )}
 
-      {/* ERC-20 Tab */}
       {tab === 'erc20' && (
         <div className="card">
-          <div className="label" style={{ marginBottom: '0.25rem' }}>Withdraw ERC-20 Token</div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-3)', marginBottom: '1.25rem', lineHeight: 1.65 }}>
-            Specify the token and amount to withdraw from the vault back to your wallet.
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div>
-              <label className="label">Token Contract Address</label>
-              <input className="input-field" placeholder="0x…" value={tokenAddress} onChange={(e) => setTokenAddress(e.target.value)} style={{ fontFamily: 'monospace' }} />
-              {tokenName && (
-                <div style={{ fontSize: '0.78rem', color: 'var(--success)', marginTop: '0.35rem' }}>
-                  Detected: {tokenName as string} ({tokenSymbol as string})
-                  {tokenBalFormatted !== null && (
-                    <span style={{ color: 'var(--text-2)', marginLeft: '0.5rem' }}>
-                      — Vault holds {tokenBalFormatted.toLocaleString(undefined, { maximumFractionDigits: 6 })} {tokenSymbol as string}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '0.75rem', alignItems: 'flex-end' }}>
-              <div>
-                <label className="label">Amount</label>
-                <input className="input-field" type="number" min="0" placeholder="100" value={tokenAmount} onChange={(e) => setTokenAmount(e.target.value)} />
-              </div>
-              {tokenBalFormatted !== null && (
-                <button className="btn-secondary" style={{ fontSize: '0.78rem', padding: '0.5rem 0.75rem', alignSelf: 'flex-end' }} onClick={() => setTokenAmount(tokenBalFormatted.toFixed(6))}>
-                  Max
-                </button>
-              )}
-              <div>
-                <label className="label">Decimals</label>
-                <input className="input-field" type="number" placeholder="18" value={tokenDecimals} onChange={(e) => setTokenDecimals(e.target.value)} />
-              </div>
-            </div>
-
-            <button className="btn-primary" disabled={!tokenAddress || !tokenAmount} onClick={handleWithdrawERC20}>
-              Withdraw Token
-            </button>
-          </div>
-          {erc20Status === 'ok'  && <p style={{ color: 'var(--success)', fontSize: '0.82rem', marginTop: '0.75rem' }}>Token withdrawn successfully.</p>}
-          {erc20Status === 'err' && <p style={{ color: 'var(--danger)', fontSize: '0.82rem', marginTop: '0.75rem' }}>Transaction failed.</p>}
-        </div>
-      )}
-
-      {/* NFT Tab */}
-      {tab === 'nft' && (
-        <div className="card">
-          <div className="label" style={{ marginBottom: '0.25rem' }}>Withdraw NFT</div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-3)', marginBottom: '1.25rem', lineHeight: 1.65 }}>
-            Withdraw an ERC-721 or ERC-1155 NFT from the vault back to your wallet. No approval needed.
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div>
-              <label className="label">NFT Standard</label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                {(['erc721', 'erc1155'] as const).map((type) => (
-                  <button
-                    key={type} onClick={() => setNftType(type)}
-                    style={{
-                      flex: 1, padding: '0.5rem', borderRadius: '6px', fontSize: '0.82rem', fontWeight: 500,
-                      cursor: 'pointer', transition: 'all 0.12s',
-                      border: `1px solid ${nftType === type ? 'var(--accent)' : 'var(--border)'}`,
-                      background: nftType === type ? 'var(--accent-bg)' : 'var(--bg)',
-                      color: nftType === type ? 'var(--accent)' : 'var(--text-3)',
-                    }}
-                  >
-                    {type === 'erc721' ? 'ERC-721' : 'ERC-1155'}
-                  </button>
+          <div className="label">Select Token</div>
+          {trackedTokens.length > 0 && !showCustomInput ? (
+            <>
+              <div style={{ marginTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                {trackedTokens.map((t) => (
+                  <VaultTokenRow key={t.address} tokenAddress={t.address} vaultAddress={vaultAddress} selected={selectedToken === t.address} onSelect={() => { setSelectedToken(t.address); setShowCustomInput(false); setCustomTokenAddr(''); }} />
                 ))}
               </div>
-            </div>
-
-            <div>
-              <label className="label">NFT Contract Address</label>
-              <input className="input-field" placeholder="0x…" value={nftAddress} onChange={(e) => setNftAddress(e.target.value)} style={{ fontFamily: 'monospace' }} />
-              {nftName && <div style={{ fontSize: '0.78rem', color: 'var(--success)', marginTop: '0.35rem' }}>Collection: {nftName as string}</div>}
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: nftType === 'erc1155' ? '1fr 1fr' : '1fr', gap: '0.75rem' }}>
-              <div>
-                <label className="label">Token ID</label>
-                <input className="input-field" type="number" min="0" placeholder="0" value={nftTokenId} onChange={(e) => setNftTokenId(e.target.value)} />
+              <button onClick={() => { setShowCustomInput(true); setSelectedToken(null); }} className="btn-ghost" style={{ marginTop: '0.5rem', width: '100%', justifyContent: 'center' }}>+ Enter custom address</button>
+            </>
+          ) : (
+            <>
+              <input className="input-field" placeholder="Token contract address (0x...)" value={customTokenAddr} onChange={(e) => { setCustomTokenAddr(e.target.value); setSelectedToken(null); }} style={{ fontFamily: 'monospace', marginTop: '0.5rem' }} />
+              {tokenName && <div style={{ fontSize: '0.75rem', color: 'var(--success)', marginTop: '0.25rem' }}>Detected: {tokenName as string} ({tokenSymbol as string})</div>}
+              {trackedTokens.length > 0 && <button onClick={() => { setShowCustomInput(false); setCustomTokenAddr(''); }} className="btn-ghost" style={{ marginTop: '0.35rem' }}>Back to tracked tokens</button>}
+            </>
+          )}
+          {activeTokenAddr && (
+            <div style={{ borderTop: '1px solid var(--border)', marginTop: '0.75rem', paddingTop: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>Vault holds</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-1)' }}>{vaultTokenFormatted !== null ? vaultTokenFormatted.toLocaleString(undefined, { maximumFractionDigits: 6 }) : '...'} {tokenSymbol as string || ''}</span>
               </div>
-              {nftType === 'erc1155' && (
-                <div>
-                  <label className="label">Amount</label>
-                  <input className="input-field" type="number" min="1" placeholder="1" value={nftAmount} onChange={(e) => setNftAmount(e.target.value)} />
-                </div>
-              )}
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
+                <div style={{ flex: 1 }}><label className="label">Amount</label><input className="input-field" type="number" min="0" placeholder="0" value={tokenAmount} onChange={(e) => setTokenAmount(e.target.value)} /></div>
+                <button onClick={() => vaultTokenFormatted !== null && setTokenAmount(vaultTokenFormatted.toFixed(6))} className="btn-ghost" style={{ paddingBottom: '0.55rem' }}>Max</button>
+                <button className="btn-primary" disabled={!tokenAmount} onClick={handleWithdrawERC20} style={{ flexShrink: 0 }}>Withdraw</button>
+              </div>
             </div>
-
-            <button className="btn-primary" disabled={!nftAddress || !nftTokenId} onClick={handleWithdrawNFT}>
-              Withdraw NFT
-            </button>
-          </div>
-          {nftStatus === 'ok'  && <p style={{ color: 'var(--success)', fontSize: '0.82rem', marginTop: '0.75rem' }}>NFT withdrawn successfully.</p>}
-          {nftStatus === 'err' && <p style={{ color: 'var(--danger)', fontSize: '0.82rem', marginTop: '0.75rem' }}>Transaction failed.</p>}
+          )}
         </div>
       )}
+
+      {tab === 'nft' && (
+        <div className="card">
+          <div className="label">Withdraw NFT</div>
+          <div style={{ display: 'flex', gap: '0.375rem', margin: '0.5rem 0' }}>
+            {(['erc721', 'erc1155'] as const).map((t) => (
+              <button key={t} onClick={() => setNftType(t)} style={{
+                flex: 1, padding: '0.4rem', borderRadius: '5px', fontSize: '0.78rem', fontWeight: 500, cursor: 'pointer', transition: 'all 0.12s',
+                border: `1px solid ${nftType === t ? 'var(--accent)' : 'var(--border)'}`, background: nftType === t ? 'var(--accent-bg)' : 'var(--bg)', color: nftType === t ? 'var(--accent)' : 'var(--text-3)',
+              }}>{t === 'erc721' ? 'ERC-721' : 'ERC-1155'}</button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', marginTop: '0.5rem' }}>
+            <div><label className="label">NFT Contract</label><input className="input-field" placeholder="0x..." value={nftAddress} onChange={(e) => setNftAddress(e.target.value)} style={{ fontFamily: 'monospace' }} />{nftName && <div style={{ fontSize: '0.75rem', color: 'var(--success)', marginTop: '0.2rem' }}>Collection: {nftName as string}</div>}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: nftType === 'erc1155' ? '1fr 1fr' : '1fr', gap: '0.5rem' }}>
+              <div><label className="label">Token ID</label><input className="input-field" type="number" min="0" placeholder="0" value={nftTokenId} onChange={(e) => setNftTokenId(e.target.value)} /></div>
+              {nftType === 'erc1155' && <div><label className="label">Amount</label><input className="input-field" type="number" min="1" placeholder="1" value={nftAmount} onChange={(e) => setNftAmount(e.target.value)} /></div>}
+            </div>
+            <button className="btn-primary" disabled={!nftAddress || !nftTokenId} onClick={handleWithdrawNFT}>Withdraw NFT</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VaultTokenRow({ tokenAddress, vaultAddress, selected, onSelect }: { tokenAddress: `0x${string}`; vaultAddress: `0x${string}`; selected: boolean; onSelect: () => void }) {
+  const { data: symbol } = useReadContract({ address: tokenAddress, abi: ERC20ABI, functionName: 'symbol' });
+  const { data: name } = useReadContract({ address: tokenAddress, abi: ERC20ABI, functionName: 'name' });
+  const { data: decimals } = useReadContract({ address: tokenAddress, abi: ERC20ABI, functionName: 'decimals' });
+  const { data: bal } = useReadContract({ address: tokenAddress, abi: ERC20ABI, functionName: 'balanceOf', args: [vaultAddress] });
+  const fmt = bal && decimals ? parseFloat(formatUnits(bal as bigint, decimals as number)) : null;
+  return (
+    <div className={`token-row ${selected ? 'selected' : ''}`} onClick={onSelect}>
+      <div><div style={{ fontWeight: 500, fontSize: '0.85rem', color: 'var(--text-1)' }}>{(name as string) || '...'}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-4)', fontFamily: 'monospace' }}>{tokenAddress.slice(0, 10)}...{tokenAddress.slice(-4)}</div></div>
+      <div style={{ textAlign: 'right' }}><div style={{ fontWeight: 600, fontSize: '0.85rem', color: fmt === 0 ? 'var(--text-4)' : 'var(--text-1)' }}>{fmt !== null ? fmt.toLocaleString(undefined, { maximumFractionDigits: 4 }) : '...'}</div><div style={{ fontSize: '0.7rem', color: 'var(--text-4)' }}>{(symbol as string) || ''}</div></div>
     </div>
   );
 }

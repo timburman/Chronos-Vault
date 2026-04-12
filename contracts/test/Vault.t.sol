@@ -340,6 +340,30 @@ contract VaultTest is Test {
         assertEq(vault.guardianCount(), 0);
     }
 
+    function test_GetGuardians() public {
+        vm.startPrank(owner);
+        vault.addGuardian(guardian1);
+        vault.addGuardian(guardian2);
+        vm.stopPrank();
+
+        address[] memory list = vault.getGuardians();
+        assertEq(list.length, 2);
+        assertTrue(list[0] == guardian1 || list[1] == guardian1);
+        assertTrue(list[0] == guardian2 || list[1] == guardian2);
+    }
+
+    function test_GetGuardians_AfterRemoval() public {
+        vm.startPrank(owner);
+        vault.addGuardian(guardian1);
+        vault.addGuardian(guardian2);
+        vault.removeGuardian(guardian1);
+        vm.stopPrank();
+
+        address[] memory list = vault.getGuardians();
+        assertEq(list.length, 1);
+        assertEq(list[0], guardian2);
+    }
+
     function test_RevertIf_StrangerAddsGuardian() public {
         vm.prank(stranger);
         vm.expectRevert(Unauthorized.selector);

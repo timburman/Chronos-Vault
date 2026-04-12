@@ -1,131 +1,153 @@
 'use client';
 
+import { usePublicClient } from 'wagmi';
+import { VaultABI } from '@/utils/abi';
 import { useState, useEffect } from 'react';
-import { fetchVaultTransfers, isAlchemyAvailable } from '@/utils/alchemy';
-import type { AssetTransfer } from '@/utils/alchemy';
+import { formatEther, type Log } from 'viem';
+import { ArrowDownToLine, ArrowUpFromLine, Activity as ActivityIcon, Clock, ExternalLink, KeyRound, ShieldCheck, Pause, Play } from 'lucide-react';
 
 interface Props { vaultAddress: `0x${string}` }
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days < 30) return `${days}d ago`;
-  return `${Math.floor(days / 30)}mo ago`;
+interface VaultEvent {
+  name: string;
+  args: Record<string, unknown>;
+  blockNumber: bigint;
+  transactionHash: string;
+  timestamp?: number;
 }
 
-function classifyTransfer(tx: AssetTransfer, vaultAddr: string): { type: string; icon: string; color: string } {
-  const isIncoming = tx.to.toLowerCase() === vaultAddr.toLowerCase();
-  if (tx.category === 'erc721' || tx.category === 'erc1155') {
-    return isIncoming
-      ? { type: 'NFT Deposit', icon: '🖼️', color: 'var(--success)' }
-      : { type: 'NFT Withdrawal', icon: '🖼️', color: 'var(--accent)' };
+const EVENT_META: Record<string, { label: string; Icon: typeof ArrowDownToLine; className: string }> = {
+  Funded:              { label: 'ETH Deposited',        Icon: ArrowDownToLine,  className: 'icon-box-success' },
+  FundedERC20:         { label: 'Token Deposited',      Icon: ArrowDownToLine,  className: 'icon-box-success' },
+  FundedERC721:        { label: 'NFT Deposited',        Icon: ArrowDownToLine,  className: 'icon-box-success' },
+  FundedERC1155:       { label: 'ERC-1155 Deposited',   Icon: ArrowDownToLine,  className: 'icon-box-success' },
+  Withdrawn:           { label: 'ETH Withdrawn',        Icon: ArrowUpFromLine,  className: 'icon-box-accent' },
+  WithdrawnERC20:      { label: 'Token Withdrawn',      Icon: ArrowUpFromLine,  className: 'icon-box-accent' },
+  WithdrawnERC721:     { label: 'NFT Withdrawn',        Icon: ArrowUpFromLine,  className: 'icon-box-accent' },
+  WithdrawnERC1155:    { label: 'ERC-1155 Withdrawn',   Icon: ArrowUpFromLine,  className: 'icon-box-accent' },
+  Pinged:              { label: 'Proof of Life',        Icon: ActivityIcon,     className: 'icon-box-success' },
+  Claimed:             { label: 'Inheritance Claimed',  Icon: KeyRound,         className: 'icon-box-danger' },
+  ClaimedERC20:        { label: 'Token Claimed',        Icon: KeyRound,         className: 'icon-box-danger' },
+  ClaimedERC721:       { label: 'NFT Claimed',          Icon: KeyRound,         className: 'icon-box-danger' },
+  ClaimedERC1155:      { label: 'ERC-1155 Claimed',     Icon: KeyRound,         className: 'icon-box-danger' },
+  GuardianAdded:       { label: 'Guardian Added',       Icon: ShieldCheck,      className: 'icon-box-success' },
+  GuardianRemoved:     { label: 'Guardian Removed',     Icon: ShieldCheck,      className: 'icon-box-muted' },
+  BeneficiaryChanged:  { label: 'Beneficiary Changed',  Icon: KeyRound,         className: 'icon-box-accent' },
+  Paused:              { label: 'Vault Paused',         Icon: Pause,            className: 'icon-box-danger' },
+  Unpaused:            { label: 'Vault Unpaused',       Icon: Play,             className: 'icon-box-success' },
+};
+
+function formatEventDetail(name: string, args: Record<string, unknown>): string {
+  switch (name) {
+    case 'Funded':
+    case 'Withdrawn':
+    case 'Claimed':
+      return args.amount ? `${parseFloat(formatEther(args.amount as bigint)).toFixed(4)} ETH` : '';
+    case 'FundedERC20':
+    case 'WithdrawnERC20':
+    case 'ClaimedERC20':
+      return `Token: ${(args.token as string || '').slice(0, 10)}...`;
+    case 'FundedERC721':
+    case 'WithdrawnERC721':
+    case 'ClaimedERC721':
+      return `NFT #${args.tokenId?.toString() || '?'}`;
+    case 'GuardianAdded':
+    case 'GuardianRemoved':
+      return `${(args.guardian as string || '').slice(0, 10)}...${(args.guardian as string || '').slice(-4)}`;
+    case 'Pinged':
+      return args.timestamp ? new Date(Number(args.timestamp) * 1000).toLocaleTimeString() : '';
+    default:
+      return '';
   }
-  if (tx.category === 'erc20') {
-    return isIncoming
-      ? { type: 'Token Deposit', icon: '💰', color: 'var(--success)' }
-      : { type: 'Token Withdrawal', icon: '📤', color: 'var(--accent)' };
-  }
-  return isIncoming
-    ? { type: 'ETH Deposit', icon: '⬇️', color: 'var(--success)' }
-    : { type: 'ETH Withdrawal', icon: '⬆️', color: 'var(--accent)' };
 }
 
 export default function Activity({ vaultAddress }: Props) {
-  const [transfers, setTransfers] = useState<(AssetTransfer & { direction: 'in' | 'out' })[]>([]);
+  const publicClient = usePublicClient();
+  const [events, setEvents] = useState<VaultEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isAlchemyAvailable()) { setLoading(false); return; }
-    fetchVaultTransfers(vaultAddress).then(({ incoming, outgoing }) => {
-      const all = [
-        ...incoming.map((t) => ({ ...t, direction: 'in' as const })),
-        ...outgoing.map((t) => ({ ...t, direction: 'out' as const })),
-      ].sort((a, b) => new Date(b.metadata.blockTimestamp).getTime() - new Date(a.metadata.blockTimestamp).getTime());
-      setTransfers(all);
+    async function fetchEvents() {
+      if (!publicClient) return;
+      try {
+        const logs = await publicClient.getLogs({
+          address: vaultAddress,
+          fromBlock: BigInt(0),
+          toBlock: 'latest',
+        });
+
+        // Decode events using the ABI
+        const eventAbis = (VaultABI as readonly Record<string, unknown>[]).filter((a) => a.type === 'event');
+        const decoded: VaultEvent[] = [];
+
+        for (const log of logs) {
+          for (const eventAbi of eventAbis) {
+            try {
+              const { decodeEventLog } = await import('viem');
+              const result = decodeEventLog({
+                abi: [eventAbi],
+                data: (log as Log).data,
+                topics: (log as Log).topics,
+              });
+              decoded.push({
+                name: ((result as any).eventName as string) || '',
+                args: (result.args || {}) as Record<string, unknown>,
+                blockNumber: log.blockNumber || BigInt(0),
+                transactionHash: (log as Log).transactionHash || '',
+              });
+              break;
+            } catch {
+              // Not this event
+            }
+          }
+        }
+
+        // Sort descending (newest first)
+        decoded.sort((a, b) => Number(b.blockNumber) - Number(a.blockNumber));
+        setEvents(decoded);
+      } catch (err) {
+        console.error('Failed to fetch events:', err);
+      }
       setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [vaultAddress]);
+    }
+    fetchEvents();
+  }, [vaultAddress, publicClient]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      <h1 style={{ fontFamily: 'var(--font-serif), serif', fontSize: '1.6rem', color: 'var(--text-1)' }}>Activity</h1>
+    <div className="dashboard-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.4rem', color: 'var(--text-1)' }}>Activity</h1>
 
       <div className="card">
-        {!isAlchemyAvailable() ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-4)', fontSize: '0.85rem' }}>
-            Set <code style={{ fontSize: '0.78rem' }}>NEXT_PUBLIC_ALCHEMY_KEY</code> in your .env to view transaction history.
-          </div>
-        ) : loading ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-4)', fontSize: '0.85rem' }}>
-            Loading transaction history…
-          </div>
-        ) : transfers.length === 0 ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-4)', fontSize: '0.85rem' }}>
-            No transactions found for this vault.
-          </div>
+        {loading ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-4)', fontSize: '0.82rem' }}>Loading events from chain...</div>
+        ) : events.length === 0 ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-4)', fontSize: '0.82rem' }}>No activity yet. Deposit some assets to get started.</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {transfers.map((tx, i) => {
-              const info = classifyTransfer(tx, vaultAddress);
+            {events.map((ev, i) => {
+              const meta = EVENT_META[ev.name] || { label: ev.name, Icon: Clock, className: 'icon-box-muted' };
+              const detail = formatEventDetail(ev.name, ev.args);
               return (
-                <div
-                  key={`${tx.hash}-${i}`}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '1rem',
-                    padding: '0.875rem 0',
-                    borderBottom: i < transfers.length - 1 ? '1px solid var(--border)' : 'none',
-                  }}
-                >
-                  <div style={{
-                    width: '36px', height: '36px', borderRadius: '8px',
-                    background: 'var(--bg)', border: '1px solid var(--border)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '1.1rem', flexShrink: 0,
-                  }}>
-                    {info.icon}
+                <div key={`${ev.transactionHash}-${i}`} style={{
+                  display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.625rem 0',
+                  borderBottom: i < events.length - 1 ? '1px solid var(--border)' : 'none',
+                }}>
+                  <div className={`icon-box ${meta.className}`} style={{ width: '32px', height: '32px', borderRadius: '7px' }}>
+                    <meta.Icon size={14} />
                   </div>
-
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ fontWeight: 500, fontSize: '0.88rem', color: info.color }}>{info.type}</span>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-4)' }}>
-                        {timeAgo(tx.metadata.blockTimestamp)}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-4)', marginTop: '0.15rem' }}>
-                      {tx.direction === 'in' ? 'From' : 'To'}: {(tx.direction === 'in' ? tx.from : tx.to).slice(0, 10)}…{(tx.direction === 'in' ? tx.from : tx.to).slice(-6)}
-                    </div>
+                    <div style={{ fontWeight: 500, fontSize: '0.85rem', color: 'var(--text-1)' }}>{meta.label}</div>
+                    {detail && <div style={{ fontSize: '0.72rem', color: 'var(--text-4)', marginTop: '0.05rem' }}>{detail}</div>}
                   </div>
-
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    {tx.value !== null && (
-                      <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-1)' }}>
-                        {tx.direction === 'in' ? '+' : '-'}{typeof tx.value === 'number' ? tx.value.toFixed(4) : tx.value}
-                        {tx.asset && <span style={{ color: 'var(--text-4)', fontWeight: 400, marginLeft: '0.25rem' }}>{tx.asset}</span>}
-                      </div>
-                    )}
-                    {tx.erc721TokenId && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-4)' }}>ID: {tx.erc721TokenId}</div>
-                    )}
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-4)' }}>Block {ev.blockNumber.toString()}</div>
                   </div>
-
-                  <a
-                    href={`https://etherscan.io/tx/${tx.hash}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      fontSize: '0.72rem', color: 'var(--text-4)', textDecoration: 'none',
-                      padding: '0.25rem 0.5rem', borderRadius: '4px',
-                      border: '1px solid var(--border)', flexShrink: 0,
-                    }}
-                  >
-                    View ↗
-                  </a>
+                  {ev.transactionHash && (
+                    <a href={`https://etherscan.io/tx/${ev.transactionHash}`} target="_blank" rel="noopener noreferrer"
+                      style={{ color: 'var(--text-4)', flexShrink: 0 }}>
+                      <ExternalLink size={13} />
+                    </a>
+                  )}
                 </div>
               );
             })}

@@ -42,6 +42,7 @@ contract Vault is ReentrancyGuard, IERC721Receiver, IERC1155Receiver {
 
     // ─── Guardian State ─────────────────────────────────────────────────────
     mapping(address => bool) public guardians;
+    address[] private _guardianList;
     uint256 public guardianCount;
 
     // ─── Beneficiary Timelock State ─────────────────────────────────────────
@@ -209,6 +210,7 @@ contract Vault is ReentrancyGuard, IERC721Receiver, IERC1155Receiver {
         if (guardians[_guardian]) revert AlreadyGuardian();
         if (guardianCount >= MAX_GUARDIANS) revert TooManyGuardians();
         guardians[_guardian] = true;
+        _guardianList.push(_guardian);
         guardianCount++;
         emit GuardianAdded(_guardian);
     }
@@ -218,8 +220,21 @@ contract Vault is ReentrancyGuard, IERC721Receiver, IERC1155Receiver {
     function removeGuardian(address _guardian) external onlyOwner {
         if (!guardians[_guardian]) revert NotGuardian();
         guardians[_guardian] = false;
+        // Swap-and-pop from the list
+        for (uint256 i = 0; i < _guardianList.length; i++) {
+            if (_guardianList[i] == _guardian) {
+                _guardianList[i] = _guardianList[_guardianList.length - 1];
+                _guardianList.pop();
+                break;
+            }
+        }
         guardianCount--;
         emit GuardianRemoved(_guardian);
+    }
+
+    /// @notice Returns the list of all active guardian addresses
+    function getGuardians() external view returns (address[] memory) {
+        return _guardianList;
     }
 
     // ─── Beneficiary Timelock ───────────────────────────────────────────────
