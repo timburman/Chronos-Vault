@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 export default function WhatSection() {
   return (
     <section style={{ maxWidth: '1100px', margin: '0 auto', padding: '7rem 2rem' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5rem', alignItems: 'start' }}>
+      <div className="md-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5rem', alignItems: 'start' }}>
         {/* Problem */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
