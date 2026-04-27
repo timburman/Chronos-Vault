@@ -27,7 +27,7 @@ export default function WhySection() {
           Centralized inheritance services ask you to trust that a company still exists, has no conflicts of interest, and will faithfully execute your wishes decades from now. We remove all of that.
         </p>
 
-        <div style={{ border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+        <div style={{ border: '1px solid var(--border)', borderRadius: '12px', overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: 'var(--surface)' }}>
