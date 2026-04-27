@@ -1,8 +1,10 @@
 'use client';
 import Link from 'next/link';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useState } from 'react';
+import { Menu, X } from 'lucide-react';
 
 export default function Navbar() {
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <header
       style={{
@@ -32,24 +34,31 @@ export default function Navbar() {
           </span>
         </Link>
 
-        {/* Nav links */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+        {/* Desktop Nav */}
+        <nav className="desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
           <a href="#how" style={{ fontSize: '0.85rem', color: 'var(--text-3)', textDecoration: 'none' }}>How it works</a>
           <a href="#why" style={{ fontSize: '0.85rem', color: 'var(--text-3)', textDecoration: 'none' }}>Why</a>
-          <a href="https://github.com/timburman/Chronos-Vault"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ fontSize: '0.85rem', color: 'var(--text-3)', textDecoration: 'none' }}
-          >
-            GitHub
-          </a>
-          <Link href="/dashboard">
-            <button className="btn-primary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.8rem' }}>
-              Launch App
-            </button>
-          </Link>
+          <a href="https://github.com/timburman/Chronos-Vault" target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.85rem', color: 'var(--text-3)', textDecoration: 'none' }}>GitHub</a>
+          <Link href="/dashboard"><button className="btn-primary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.8rem' }}>Launch App</button></Link>
         </nav>
+
+        {/* Mobile Nav Toggle */}
+        <button className="mobile-nav-toggle btn-ghost" onClick={() => setMenuOpen(!menuOpen)} style={{ padding: '0.5rem' }}>
+          {menuOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
       </div>
+
+      {/* Mobile Menu Overlay */}
+      {menuOpen && (
+        <div className="mobile-menu-overlay">
+          <a href="#how" onClick={() => setMenuOpen(false)} style={{ fontSize: '1.1rem', color: 'var(--text-2)', textDecoration: 'none' }}>How it works</a>
+          <a href="#why" onClick={() => setMenuOpen(false)} style={{ fontSize: '1.1rem', color: 'var(--text-2)', textDecoration: 'none' }}>Why</a>
+          <a href="https://github.com/timburman/Chronos-Vault" target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)} style={{ fontSize: '1.1rem', color: 'var(--text-2)', textDecoration: 'none' }}>GitHub</a>
+          <Link href="/dashboard" onClick={() => setMenuOpen(false)} style={{ marginTop: '1rem' }}>
+            <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '0.75rem', fontSize: '1rem' }}>Launch App</button>
+          </Link>
+        </div>
+      )}
     </header>
   );
 }
