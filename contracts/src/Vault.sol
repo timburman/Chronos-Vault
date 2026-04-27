@@ -87,6 +87,10 @@ contract Vault is ReentrancyGuard, IERC721Receiver, IERC1155Receiver {
     // Timeout
     event TimeoutPeriodChanged(uint256 oldPeriod, uint256 newPeriod);
 
+    // Batch Claims
+    event BatchClaimedERC721(address indexed beneficiary, address[] collections, uint256[] tokenIds);
+    event BatchClaimedERC1155(address indexed beneficiary, address[] collections, uint256[] tokenIds, uint256[] amounts);
+
     // ─── Modifiers ──────────────────────────────────────────────────────────
     modifier onlyOwner() {
         if (msg.sender != owner) revert Unauthorized();
@@ -151,7 +155,7 @@ contract Vault is ReentrancyGuard, IERC721Receiver, IERC1155Receiver {
 
     // ─── Deposit: ETH ───────────────────────────────────────────────────────
     /// @notice Accept plain ETH transfers (e.g. direct sends from wallets)
-    receive() external payable {
+    receive() external payable whenNotPaused {
         emit Funded(msg.sender, msg.value);
     }
 
@@ -352,6 +356,41 @@ contract Vault is ReentrancyGuard, IERC721Receiver, IERC1155Receiver {
     ) external onlyBeneficiary afterTimeout nonReentrant whenNotPaused {
         IERC1155(_token).safeTransferFrom(address(this), beneficiary, _tokenId, _amount, "");
         emit ClaimedERC1155(beneficiary, _token, _tokenId, _amount);
+    }
+
+    // ─── Batch Claim: ERC-721 ───────────────────────────────────────────────
+    /// @notice Beneficiary claims multiple ERC-721 NFTs in a single transaction
+    /// @param _collections Array of ERC-721 contract addresses
+    /// @param _tokenIds    Array of token IDs (must be same length as _collections)
+    function batchClaimERC721(
+        address[] calldata _collections,
+        uint256[] calldata _tokenIds
+    ) external onlyBeneficiary afterTimeout nonReentrant whenNotPaused {
+        require(_collections.length == _tokenIds.length, "Length mismatch");
+        for (uint256 i = 0; i < _collections.length; i++) {
+            IERC721(_collections[i]).safeTransferFrom(address(this), beneficiary, _tokenIds[i]);
+        }
+        emit BatchClaimedERC721(beneficiary, _collections, _tokenIds);
+    }
+
+    // ─── Batch Claim: ERC-1155 ──────────────────────────────────────────────
+    /// @notice Beneficiary claims multiple ERC-1155 tokens in a single transaction
+    /// @param _collections Array of ERC-1155 contract addresses
+    /// @param _tokenIds    Array of token IDs
+    /// @param _amounts     Array of amounts (must all be same length)
+    function batchClaimERC1155(
+        address[] calldata _collections,
+        uint256[] calldata _tokenIds,
+        uint256[] calldata _amounts
+    ) external onlyBeneficiary afterTimeout nonReentrant whenNotPaused {
+        require(
+            _collections.length == _tokenIds.length && _tokenIds.length == _amounts.length,
+            "Length mismatch"
+        );
+        for (uint256 i = 0; i < _collections.length; i++) {
+            IERC1155(_collections[i]).safeTransferFrom(address(this), beneficiary, _tokenIds[i], _amounts[i], "");
+        }
+        emit BatchClaimedERC1155(beneficiary, _collections, _tokenIds, _amounts);
     }
 
     // ─── View ───────────────────────────────────────────────────────────────
