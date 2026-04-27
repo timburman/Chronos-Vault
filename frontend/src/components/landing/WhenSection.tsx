@@ -31,7 +31,7 @@ export default function WhenSection() {
           </h2>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
+        <div className="md-grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
           {scenarios.map((s, i) => (
             <motion.div
               key={s.title}
