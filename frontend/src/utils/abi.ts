@@ -199,6 +199,23 @@ export const VaultABI = [
     ],
     outputs: [], stateMutability: 'nonpayable',
   },
+  {
+    type: 'function', name: 'batchClaimERC721',
+    inputs: [
+      { name: '_collections', type: 'address[]' },
+      { name: '_tokenIds', type: 'uint256[]' },
+    ],
+    outputs: [], stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function', name: 'batchClaimERC1155',
+    inputs: [
+      { name: '_collections', type: 'address[]' },
+      { name: '_tokenIds', type: 'uint256[]' },
+      { name: '_amounts', type: 'uint256[]' },
+    ],
+    outputs: [], stateMutability: 'nonpayable',
+  },
 
   // ─── Events ─────────────────────────────────────────────────────
   { type: 'event', name: 'Pinged', inputs: [{ name: 'timestamp', type: 'uint256', indexed: false }] },
@@ -210,6 +227,31 @@ export const VaultABI = [
   { type: 'event', name: 'GuardianRemoved', inputs: [{ name: 'guardian', type: 'address', indexed: true }] },
   { type: 'event', name: 'BeneficiaryChangeProposed', inputs: [{ name: 'newBeneficiary', type: 'address', indexed: true }, { name: 'unlockTime', type: 'uint256', indexed: false }] },
   { type: 'event', name: 'BeneficiaryChanged', inputs: [{ name: 'oldBeneficiary', type: 'address', indexed: true }, { name: 'newBeneficiary', type: 'address', indexed: true }] },
+  { type: 'event', name: 'Withdrawn', inputs: [{ name: 'owner', type: 'address', indexed: true }, { name: 'amount', type: 'uint256', indexed: false }] },
+  { type: 'event', name: 'Claimed', inputs: [{ name: 'beneficiary', type: 'address', indexed: true }, { name: 'amount', type: 'uint256', indexed: false }] },
+  { type: 'event', name: 'ClaimedERC20', inputs: [{ name: 'beneficiary', type: 'address', indexed: true }, { name: 'token', type: 'address', indexed: true }, { name: 'amount', type: 'uint256', indexed: false }] },
+  { type: 'event', name: 'ClaimedERC721', inputs: [{ name: 'beneficiary', type: 'address', indexed: true }, { name: 'token', type: 'address', indexed: true }, { name: 'tokenId', type: 'uint256', indexed: false }] },
+  { type: 'event', name: 'ClaimedERC1155', inputs: [{ name: 'beneficiary', type: 'address', indexed: true }, { name: 'token', type: 'address', indexed: true }, { name: 'tokenId', type: 'uint256', indexed: false }, { name: 'amount', type: 'uint256', indexed: false }] },
+  { type: 'event', name: 'WithdrawnERC20', inputs: [{ name: 'owner', type: 'address', indexed: true }, { name: 'token', type: 'address', indexed: true }, { name: 'amount', type: 'uint256', indexed: false }] },
+  { type: 'event', name: 'WithdrawnERC721', inputs: [{ name: 'owner', type: 'address', indexed: true }, { name: 'token', type: 'address', indexed: true }, { name: 'tokenId', type: 'uint256', indexed: false }] },
+  { type: 'event', name: 'WithdrawnERC1155', inputs: [{ name: 'owner', type: 'address', indexed: true }, { name: 'token', type: 'address', indexed: true }, { name: 'tokenId', type: 'uint256', indexed: false }, { name: 'amount', type: 'uint256', indexed: false }] },
+  {
+    type: 'event', name: 'BatchClaimedERC721',
+    inputs: [
+      { name: 'beneficiary', type: 'address', indexed: true },
+      { name: 'collections', type: 'address[]', indexed: false },
+      { name: 'tokenIds', type: 'uint256[]', indexed: false },
+    ],
+  },
+  {
+    type: 'event', name: 'BatchClaimedERC1155',
+    inputs: [
+      { name: 'beneficiary', type: 'address', indexed: true },
+      { name: 'collections', type: 'address[]', indexed: false },
+      { name: 'tokenIds', type: 'uint256[]', indexed: false },
+      { name: 'amounts', type: 'uint256[]', indexed: false },
+    ],
+  },
 
   // ─── receive ─────────────────────────────────────────────────────
   { type: 'receive', stateMutability: 'payable' },
