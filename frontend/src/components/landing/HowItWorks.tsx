@@ -30,7 +30,7 @@ export default function HowItWorks() {
           </h2>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2rem' }}>
+        <div className="md-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2rem' }}>
           {steps.map((step, i) => (
             <motion.div
               key={step.num}
