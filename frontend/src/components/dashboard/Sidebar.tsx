@@ -12,6 +12,7 @@ interface Props {
   onChange: (s: Section) => void;
   isOwner: boolean;
   isBeneficiary: boolean;
+  isOpen?: boolean;
 }
 
 const ownerNav = [
