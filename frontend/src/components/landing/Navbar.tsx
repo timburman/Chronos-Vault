@@ -1,64 +1,85 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
+import ThemeToggle from '@/components/ThemeToggle';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
     <header
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-        background: 'rgba(240, 235, 227, 0.88)',
-        backdropFilter: 'blur(12px)',
-        borderBottom: '1px solid var(--border)',
-      }}
+      className={`fixed top-0 w-full z-50 transition-all duration-300 ${
+        scrolled ? 'bg-surface/80 backdrop-blur-md border-b border-border shadow-sm' : 'bg-transparent'
+      }`}
     >
-      <div
-        style={{
-          maxWidth: '1100px',
-          margin: '0 auto',
-          padding: '0 2rem',
-          height: '60px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
+      <div className="max-w-[1100px] mx-auto px-6 h-16 flex items-center justify-between">
         {/* Wordmark */}
-        <Link href="/" style={{ textDecoration: 'none' }}>
-          <span style={{ fontFamily: 'var(--font-serif), DM Serif Display, serif', fontSize: '1.2rem', color: 'var(--text-1)', letterSpacing: '-0.01em' }}>
+        <Link href="/" className="no-underline">
+          <span className="font-serif text-xl tracking-tight text-text-1">
             Chronos Vault
           </span>
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-          <a href="#how" style={{ fontSize: '0.85rem', color: 'var(--text-3)', textDecoration: 'none' }}>How it works</a>
-          <a href="#why" style={{ fontSize: '0.85rem', color: 'var(--text-3)', textDecoration: 'none' }}>Why</a>
-          <a href="https://github.com/timburman/Chronos-Vault" target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.85rem', color: 'var(--text-3)', textDecoration: 'none' }}>GitHub</a>
-          <Link href="/dashboard"><button className="btn-primary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.8rem' }}>Launch App</button></Link>
+        <nav className="hidden md:flex items-center gap-8">
+          <a href="#how" className="text-sm text-text-3 hover:text-text-1 transition-colors">How it works</a>
+          <a href="#why" className="text-sm text-text-3 hover:text-text-1 transition-colors">Why</a>
+          <a href="https://github.com/timburman/Chronos-Vault" target="_blank" rel="noopener noreferrer" className="text-sm text-text-3 hover:text-text-1 transition-colors">GitHub</a>
+          
+          <div className="flex items-center gap-4 pl-4 border-l border-border">
+            <ThemeToggle />
+            <Link href="/dashboard">
+              <button className="btn-primary py-2 px-5 text-sm">Launch App</button>
+            </Link>
+          </div>
         </nav>
 
         {/* Mobile Nav Toggle */}
-        <button className="mobile-nav-toggle btn-ghost" onClick={() => setMenuOpen(!menuOpen)} style={{ padding: '0.5rem' }}>
-          {menuOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
+        <div className="flex md:hidden items-center gap-2">
+          <ThemeToggle />
+          <button
+            className="p-2 text-text-3 hover:text-text-1 transition-colors"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Toggle Menu"
+          >
+            {menuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Menu Overlay */}
-      {menuOpen && (
-        <div className="mobile-menu-overlay">
-          <a href="#how" onClick={() => setMenuOpen(false)} style={{ fontSize: '1.1rem', color: 'var(--text-2)', textDecoration: 'none' }}>How it works</a>
-          <a href="#why" onClick={() => setMenuOpen(false)} style={{ fontSize: '1.1rem', color: 'var(--text-2)', textDecoration: 'none' }}>Why</a>
-          <a href="https://github.com/timburman/Chronos-Vault" target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)} style={{ fontSize: '1.1rem', color: 'var(--text-2)', textDecoration: 'none' }}>GitHub</a>
-          <Link href="/dashboard" onClick={() => setMenuOpen(false)} style={{ marginTop: '1rem' }}>
-            <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '0.75rem', fontSize: '1rem' }}>Launch App</button>
-          </Link>
-        </div>
-      )}
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="absolute top-[63px] left-0 w-full border-b border-border shadow-2xl md:hidden overflow-hidden z-[60]"
+            style={{ background: 'var(--bg)' }}
+          >
+            <div className="flex flex-col p-8 gap-6">
+              <a href="#how" onClick={() => setMenuOpen(false)} className="text-xl font-medium text-text-2 hover:text-text-1 transition-colors">How it works</a>
+              <a href="#why" onClick={() => setMenuOpen(false)} className="text-xl font-medium text-text-2 hover:text-text-1 transition-colors">Why</a>
+              <a href="https://github.com/timburman/Chronos-Vault" target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)} className="text-xl font-medium text-text-2 hover:text-text-1 transition-colors">GitHub</a>
+              <div className="pt-6 border-t border-border mt-2">
+                <Link href="/dashboard" onClick={() => setMenuOpen(false)}>
+                  <button className="btn-primary w-full justify-center py-4 text-lg">Launch App</button>
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }
