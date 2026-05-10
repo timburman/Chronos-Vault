@@ -1,50 +1,82 @@
 'use client';
 
 import '@rainbow-me/rainbowkit/styles.css';
-import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
+import { RainbowKitProvider, darkTheme, lightTheme } from '@rainbow-me/rainbowkit';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useState, useEffect } from 'react';
 import { wagmiConfig } from '@/utils/config';
+import { useState } from 'react';
 import { Toaster } from 'react-hot-toast';
+import { CustomThemeProvider, useTheme } from '@/context/ThemeContext';
 
-const queryClient = new QueryClient();
+// ─── Server-side Polyfills ──────────────────────────────────────────
+if (typeof window === 'undefined') {
+  // @ts-ignore
+  global.localStorage = {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+    clear: () => {},
+    key: () => null,
+    length: 0,
+  };
+}
 
-export default function Providers({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  if (!mounted) return null;
+function ThemeAwareProviders({ children }: { children: React.ReactNode }) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   return (
-    <WagmiProvider config={wagmiConfig}>
-      <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider
-          theme={darkTheme({
+    <RainbowKitProvider
+      theme={isDark 
+        ? darkTheme({
+            accentColor: '#D4AF37', // metallic gold
+            accentColorForeground: '#0A0A0A',
+            borderRadius: 'medium',
+            fontStack: 'system',
+            overlayBlur: 'small',
+          })
+        : lightTheme({
             accentColor: '#B8860B',
             accentColorForeground: '#fff',
             borderRadius: 'medium',
             fontStack: 'system',
             overlayBlur: 'small',
-          })}
-        >
-          {children}
-          <Toaster
-            position="bottom-right"
-            toastOptions={{
-              style: {
-                background: '#1C1916',
-                color: '#F0EBE3',
-                border: '1px solid #3A3530',
-                borderRadius: '8px',
-                fontSize: '0.85rem',
-                fontFamily: "'DM Sans', system-ui, sans-serif",
-              },
-              success: { iconTheme: { primary: '#3D7A5C', secondary: '#F0EBE3' } },
-              error: { iconTheme: { primary: '#B04030', secondary: '#F0EBE3' } },
-              duration: 4000,
-            }}
-          />
-        </RainbowKitProvider>
+          })
+      }
+    >
+      {children}
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          style: {
+            background: 'var(--surface)',
+            color: 'var(--text-1)',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            fontSize: '0.85rem',
+            fontFamily: "'DM Sans', system-ui, sans-serif",
+          },
+          success: { iconTheme: { primary: 'var(--success)', secondary: 'var(--bg)' } },
+          error: { iconTheme: { primary: 'var(--danger)', secondary: 'var(--bg)' } },
+          duration: 4000,
+        }}
+      />
+    </RainbowKitProvider>
+  );
+}
+
+export default function Providers({ children }: { children: React.ReactNode }) {
+  const [queryClient] = useState(() => new QueryClient());
+
+  return (
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <CustomThemeProvider>
+          <ThemeAwareProviders>
+            {children}
+          </ThemeAwareProviders>
+        </CustomThemeProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );
