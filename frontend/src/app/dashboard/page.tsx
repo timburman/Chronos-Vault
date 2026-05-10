@@ -9,6 +9,7 @@ import Sidebar from '@/components/dashboard/Sidebar';
 import Link from 'next/link';
 import { Activity, ShieldCheck, Menu } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const Overview = dynamic(() => import('@/components/dashboard/Overview'), { ssr: false });
 const Assets = dynamic(() => import('@/components/dashboard/Assets'), { ssr: false });
@@ -114,9 +115,9 @@ function GuardianVaultEntry({ onConfirm }: { onConfirm: (addr: `0x${string}`) =>
   // Load saved guardian vaults
   const [savedVaults, setSavedVaults] = useState<`0x${string}`[]>([]);
   useEffect(() => {
-    if (!address || typeof window === 'undefined') return;
+    if (!address || typeof window === 'undefined' || !window.localStorage) return;
     try {
-      const saved = localStorage.getItem(`cv_guardian_vaults_${address}`);
+      const saved = window.localStorage.getItem(`cv_guardian_vaults_${address}`);
       if (saved) setSavedVaults(JSON.parse(saved));
     } catch { }
   }, [address]);
@@ -202,25 +203,32 @@ export default function Dashboard() {
 
   const handleVaultCreated = useCallback(() => { setTimeout(() => refetchOwner(), 2500); }, [refetchOwner]);
 
-  if (!isConnected) {
-    return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
-        <div style={{ fontFamily: 'var(--font-serif)', fontSize: '1.3rem', color: 'var(--text-1)', marginBottom: '0.35rem' }}>Chronos Vault</div>
-        <p style={{ color: 'var(--text-3)', fontSize: '0.85rem', marginBottom: '1.75rem', textAlign: 'center', maxWidth: '320px' }}>
-          Connect your wallet to access the vault dashboard or claim an inheritance.
-        </p>
-        <ConnectButton />
-        <a href="/" style={{ marginTop: '1.25rem', fontSize: '0.78rem', color: 'var(--text-4)', textDecoration: 'none' }}>Back to home</a>
-      </div>
-    );
-  }
+  return (
+    <div style={{ height: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <DashboardHeader 
+        ownerVaults={ownerVaults} 
+        selectedVaultIdx={selectedVaultIdx} 
+        setSelectedVaultIdx={setSelectedVaultIdx} 
+        onToggleSidebar={isConnected ? () => setSidebarOpen(!sidebarOpen) : undefined} 
+      />
 
-  // Guardian vault view
-  if (guardianVault && isGuardian) {
-    return (
-      <div style={{ height: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <DashboardHeader ownerVaults={ownerVaults} selectedVaultIdx={selectedVaultIdx} setSelectedVaultIdx={setSelectedVaultIdx} onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-        <div className="dashboard-wrapper" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      {!isConnected ? (
+        <main className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+          <div className="max-w-[400px] w-full p-8 bg-surface border border-border rounded-2xl shadow-sm">
+            <div className="font-serif text-2xl text-text-1 mb-3">Welcome to Chronos</div>
+            <p className="text-sm text-text-3 mb-8 leading-relaxed">
+              Connect your wallet to access the vault dashboard, manage your inheritance plans, or claim assets as a beneficiary.
+            </p>
+            <div className="flex justify-center">
+              <ConnectButton />
+            </div>
+          </div>
+          <Link href="/" className="mt-8 text-xs text-text-4 hover:text-text-2 transition-colors no-underline">
+            ← Back to landing page
+          </Link>
+        </main>
+      ) : guardianVault && isGuardian ? (
+        <div className="dashboard-wrapper flex flex-1 overflow-hidden">
           <aside className={`sidebar-desktop ${sidebarOpen ? 'open' : ''}`} style={{ width: '200px', flexShrink: 0, background: 'var(--bg-alt)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', padding: '1rem 0.75rem', gap: '0.15rem' }}>
             <div style={{ fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--text-4)', padding: '0 0.75rem', marginBottom: '0.25rem' }}>Guardian</div>
             <button className="nav-link active"><ShieldCheck size={16} strokeWidth={1.8} /> Guardian View</button>
@@ -228,49 +236,43 @@ export default function Dashboard() {
             <button onClick={() => setGuardianVault(null)} className="nav-link" style={{ fontSize: '0.78rem', color: 'var(--text-4)' }}>Back to Dashboard</button>
           </aside>
           {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
-          <main className="dashboard-main" style={{ flex: 1, overflowY: 'auto', padding: '2rem 2.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <main className="dashboard-main flex-1 overflow-y-auto p-6 md:p-10 flex flex-col items-center">
             <div style={{ width: '100%', maxWidth: '780px' }}>
               <GuardianPanel vaultAddress={guardianVault} />
             </div>
           </main>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ height: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <DashboardHeader ownerVaults={ownerVaults} selectedVaultIdx={selectedVaultIdx} setSelectedVaultIdx={setSelectedVaultIdx} onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-      <div className="dashboard-wrapper" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <Sidebar active={section} onChange={(s) => { setSection(s); setSidebarOpen(false); }} isOwner={hasVault} isBeneficiary={isBeneficiary} isOpen={sidebarOpen} />
-        {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
-        <main style={{ flex: 1, overflowY: 'auto', padding: '2rem 2.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div style={{ width: '100%', maxWidth: '780px' }}>
-            {!hasVault && section !== 'claim' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                <CreateVaultModal onSuccess={handleVaultCreated} />
-                {/* Guardian access for users with no vault */}
-                <div style={{ maxWidth: '540px' }}>
-                  <GuardianVaultEntry onConfirm={(addr) => setGuardianVault(addr)} />
+      ) : (
+        <div className="dashboard-wrapper flex flex-1 overflow-hidden">
+          <Sidebar active={section} onChange={(s) => { setSection(s); setSidebarOpen(false); }} isOwner={hasVault} isBeneficiary={isBeneficiary} isOpen={sidebarOpen} />
+          {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
+          <main className="dashboard-main flex-1 overflow-y-auto p-6 md:p-10 flex flex-col items-center">
+            <div style={{ width: '100%', maxWidth: '780px' }}>
+              {!hasVault && section !== 'claim' && (
+                <div className="flex flex-col gap-6 w-full">
+                  <CreateVaultModal onSuccess={handleVaultCreated} />
+                  <div style={{ maxWidth: '540px' }}>
+                    <GuardianVaultEntry onConfirm={(addr) => setGuardianVault(addr)} />
+                  </div>
                 </div>
-              </div>
-            )}
-            {hasVault && (
-              <>
-                {section === 'overview' && <Overview vaultAddress={vaultAddress!} />}
-                {section === 'assets' && <Assets vaultAddress={vaultAddress!} />}
-                {section === 'deposit' && <Deposit vaultAddress={vaultAddress!} />}
-                {section === 'withdraw' && <Withdraw vaultAddress={vaultAddress!} />}
-                {section === 'activity' && <ActivityView vaultAddress={vaultAddress!} />}
-                {section === 'guardians' && <Guardians vaultAddress={vaultAddress!} />}
-                {section === 'settings' && <Settings vaultAddress={vaultAddress!} />}
-                {section === 'claim' && benVaultAddress && <Claim vaultAddress={benVaultAddress} />}
-              </>
-            )}
-            {!hasVault && isBeneficiary && section === 'claim' && <Claim vaultAddress={benVaultAddress!} />}
-          </div>
-        </main>
-      </div>
+              )}
+              {hasVault && (
+                <>
+                  {section === 'overview' && <Overview vaultAddress={vaultAddress!} />}
+                  {section === 'assets' && <Assets vaultAddress={vaultAddress!} />}
+                  {section === 'deposit' && <Deposit vaultAddress={vaultAddress!} />}
+                  {section === 'withdraw' && <Withdraw vaultAddress={vaultAddress!} />}
+                  {section === 'activity' && <ActivityView vaultAddress={vaultAddress!} />}
+                  {section === 'guardians' && <Guardians vaultAddress={vaultAddress!} />}
+                  {section === 'settings' && <Settings vaultAddress={vaultAddress!} />}
+                  {section === 'claim' && benVaultAddress && <Claim vaultAddress={benVaultAddress} />}
+                </>
+              )}
+              {!hasVault && isBeneficiary && section === 'claim' && <Claim vaultAddress={benVaultAddress!} />}
+            </div>
+          </main>
+        </div>
+      )}
     </div>
   );
 }
@@ -281,32 +283,35 @@ function DashboardHeader({ ownerVaults, selectedVaultIdx, setSelectedVaultIdx, o
   ownerVaults: `0x${string}`[]; selectedVaultIdx: number; setSelectedVaultIdx: (i: number) => void; onToggleSidebar?: () => void;
 }) {
   return (
-    <header style={{
-      height: '52px', flexShrink: 0,
-      background: 'rgba(240, 235, 227, 0.92)', backdropFilter: 'blur(12px)',
-      borderBottom: '1px solid var(--border)',
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1.5rem', zIndex: 40,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-        <button className="mobile-nav-toggle btn-ghost" onClick={onToggleSidebar} style={{ padding: '0.25rem' }}>
-          <Menu size={18} />
-        </button>
-        <Link href="/" style={{ textDecoration: 'none' }}>
-          <span style={{ fontFamily: 'var(--font-serif)', fontSize: '1rem', color: 'var(--text-1)', letterSpacing: '-0.01em' }}>Chronos Vault</span>
+    <header className="h-[52px] shrink-0 bg-surface/90 backdrop-blur-md border-b border-border flex items-center justify-between px-2 md:px-6 z-40 sticky top-0 w-full">
+      <div className="flex items-center gap-1 md:gap-5">
+        {onToggleSidebar && (
+          <button className="mobile-nav-toggle btn-ghost p-1" onClick={onToggleSidebar}>
+            <Menu size={20} />
+          </button>
+        )}
+        <Link href="/" className="no-underline flex items-center">
+          <span className="font-serif text-sm md:text-base text-text-1 tracking-tight hidden sm:inline">Chronos Vault</span>
+          <span className="font-serif text-sm text-text-1 tracking-tight sm:hidden">CV</span>
         </Link>
         {ownerVaults.length > 1 && (
           <select value={selectedVaultIdx} onChange={(e) => setSelectedVaultIdx(Number(e.target.value))}
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '5px', padding: '0.25rem 0.5rem', fontSize: '0.72rem', color: 'var(--text-2)', fontFamily: 'monospace', cursor: 'pointer' }}>
-            {ownerVaults.map((v, i) => <option key={v} value={i}>Vault {i + 1}: {v.slice(0, 8)}...{v.slice(-4)}</option>)}
+            className="bg-surface border border-border rounded-md py-1 px-1.5 text-[10px] md:text-xs text-text-2 font-mono cursor-pointer outline-none focus:border-accent-dim hidden lg:block">
+            {ownerVaults.map((v, i) => <option key={v} value={i}>Vault {i + 1}: {v.slice(0, 6)}...{v.slice(-4)}</option>)}
           </select>
         )}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-        <div className="desktop-nav" style={{ display: 'flex', gap: '1.5rem' }}>
-          <a href="/#how" style={{ fontSize: '0.78rem', color: 'var(--text-3)', textDecoration: 'none' }}>How it works</a>
-          <a href="https://github.com/timburman/Chronos-Vault" target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.78rem', color: 'var(--text-3)', textDecoration: 'none' }}>GitHub</a>
+      <div className="flex items-center gap-1 md:gap-6">
+        <div className="hidden xl:flex gap-6">
+          <a href="/#how" className="text-xs text-text-3 hover:text-text-1 no-underline transition-colors">How it works</a>
+          <a href="https://github.com/timburman/Chronos-Vault" target="_blank" rel="noopener noreferrer" className="text-xs text-text-3 hover:text-text-1 no-underline transition-colors">GitHub</a>
         </div>
-        <ConnectButton showBalance={false} accountStatus="address" chainStatus="icon" />
+        <div className="flex items-center gap-1 md:gap-3">
+          <ThemeToggle />
+          <div className="scale-75 sm:scale-90 md:scale-100 origin-right">
+            <ConnectButton showBalance={false} accountStatus="address" chainStatus="icon" />
+          </div>
+        </div>
       </div>
     </header>
   );
