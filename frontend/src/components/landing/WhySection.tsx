@@ -12,36 +12,41 @@ const rows = [
 
 export default function WhySection() {
   return (
-    <section id="why" style={{ maxWidth: '1100px', margin: '0 auto', padding: '7rem 2rem' }}>
+    <section id="why" className="max-w-[1100px] mx-auto px-6 py-20 md:py-28">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
+        viewport={{ once: true, margin: '-50px' }}
         transition={{ duration: 0.55 }}
       >
-        <p className="section-label" style={{ marginBottom: '0.75rem' }}>Why on-chain</p>
-        <h2 style={{ fontFamily: 'var(--font-serif), serif', fontSize: 'clamp(1.8rem, 3.5vw, 2.4rem)', color: 'var(--text-1)', marginBottom: '0.75rem' }}>
+        <p className="section-label mb-3">Why on-chain</p>
+        <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-text-1 mb-4">
           Trustless beats trusted every time
         </h2>
-        <p style={{ fontSize: '0.95rem', color: 'var(--text-3)', maxWidth: '560px', lineHeight: 1.75, marginBottom: '3rem' }}>
+        <p className="text-[0.95rem] text-text-3 max-w-[560px] leading-relaxed mb-12">
           Centralized inheritance services ask you to trust that a company still exists, has no conflicts of interest, and will faithfully execute your wishes decades from now. We remove all of that.
         </p>
 
-        <div style={{ border: '1px solid var(--border)', borderRadius: '12px', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div className="border border-border rounded-xl overflow-x-auto shadow-sm">
+          <table className="w-full border-collapse min-w-[600px]">
             <thead>
-              <tr style={{ background: 'var(--surface)' }}>
-                <th style={{ padding: '0.875rem 1.25rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-4)', borderBottom: '1px solid var(--border)' }}>Feature</th>
-                <th style={{ padding: '0.875rem 1.25rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--accent)', borderBottom: '1px solid var(--border)' }}>Chronos Vault</th>
-                <th style={{ padding: '0.875rem 1.25rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-4)', borderBottom: '1px solid var(--border)' }}>Centralized Alternatives</th>
+              <tr className="bg-surface">
+                <th className="py-4 px-5 text-left text-xs font-semibold tracking-widest uppercase text-text-4 border-b border-border">Feature</th>
+                <th className="py-4 px-5 text-left text-xs font-semibold tracking-widest uppercase text-accent border-b border-border">Chronos Vault</th>
+                <th className="py-4 px-5 text-left text-xs font-semibold tracking-widest uppercase text-text-4 border-b border-border">Centralized Alternatives</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row, i) => (
-                <tr key={row.feature} style={{ background: i % 2 === 0 ? 'var(--bg)' : 'var(--bg-alt)' }}>
-                  <td style={{ padding: '0.875rem 1.25rem', fontSize: '0.875rem', color: 'var(--text-2)', borderBottom: '1px solid var(--border)', fontWeight: 500 }}>{row.feature}</td>
-                  <td style={{ padding: '0.875rem 1.25rem', fontSize: '0.875rem', color: 'var(--success)', borderBottom: '1px solid var(--border)' }}>{row.chronos}</td>
-                  <td style={{ padding: '0.875rem 1.25rem', fontSize: '0.875rem', color: 'var(--text-3)', borderBottom: '1px solid var(--border)' }}>{row.central}</td>
+                <tr key={row.feature} className={i % 2 === 0 ? 'bg-bg' : 'bg-bg-alt'}>
+                  <td className="py-4 px-5 text-sm text-text-2 border-b border-border font-medium">{row.feature}</td>
+                  <td className="py-4 px-5 text-sm text-success border-b border-border bg-success-bg font-medium">
+                    <span className="flex items-center gap-2">
+                      <span className="text-[10px]">●</span>
+                      {row.chronos}
+                    </span>
+                  </td>
+                  <td className="py-4 px-5 text-sm text-text-3 border-b border-border">{row.central}</td>
                 </tr>
               ))}
             </tbody>
