@@ -3,7 +3,8 @@ import { foundry } from 'wagmi/chains';
 
 export const wagmiConfig = getDefaultConfig({
   appName: 'Chronos Vault',
-  projectId: 'chronos-vault-local',
+  // Get your Project ID from https://cloud.walletconnect.com
+  projectId: process.env.NEXT_PUBLIC_PROJECT_ID || 'chronos-vault-local',
   chains: [foundry],
   ssr: true,
 });
