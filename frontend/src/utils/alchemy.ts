@@ -3,8 +3,11 @@
  * Set NEXT_PUBLIC_ALCHEMY_KEY in your .env file.
  */
 
-const ALCHEMY_KEY = process.env.NEXT_PUBLIC_ALCHEMY_KEY || '';
-const BASE_URL = `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`;
+let ALCHEMY_KEY = process.env.NEXT_PUBLIC_ALCHEMY_KEY || '';
+if (ALCHEMY_KEY.includes('/v2/')) {
+  ALCHEMY_KEY = ALCHEMY_KEY.split('/v2/')[1] || '';
+}
+const BASE_URL = `https://base-sepolia.g.alchemy.com/v2/${ALCHEMY_KEY}`;
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -57,10 +60,14 @@ async function alchemyPost(method: string, params: unknown[]) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
     });
+    if (!res.ok) {
+      console.warn(`[Alchemy] ${method} returned ${res.status}`);
+      return null;
+    }
     const json = await res.json();
     return json.result ?? null;
   } catch (err) {
-    console.error(`[Alchemy] ${method} failed:`, err);
+    console.warn(`[Alchemy] ${method} failed (check CORS or API Key)`);
     return null;
   }
 }
@@ -69,9 +76,13 @@ async function alchemyGet(path: string) {
   if (!ALCHEMY_KEY) return null;
   try {
     const res = await fetch(`${BASE_URL}/${path}`);
+    if (!res.ok) {
+      console.warn(`[Alchemy] GET ${path} returned ${res.status}`);
+      return null;
+    }
     return await res.json();
   } catch (err) {
-    console.error(`[Alchemy] GET ${path} failed:`, err);
+    console.warn(`[Alchemy] GET ${path} failed (check CORS or API Key)`);
     return null;
   }
 }
