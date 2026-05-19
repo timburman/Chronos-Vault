@@ -14,7 +14,7 @@ interface Props { vaultAddress: `0x${string}` }
 interface VaultEvent {
   name: string;
   args: Record<string, unknown>;
-  blockNumber: bigint;
+  blockNumber: string; // Stored as string for clean JSON serialization
   transactionHash: string;
 }
 
@@ -74,40 +74,63 @@ function formatEventDetail(name: string, args: Record<string, unknown>): string 
 }
 
 // ─── Chunked log fetcher ────────────────────────────────────────────────────
-// Uses 2 000-block chunks to stay within RPC log limits.
-// On small chains (Anvil/testnet < 100 000 blocks) it falls back to a
-// single query so local dev stays instant.
 const CHUNK_SIZE = BigInt(2000);
 const SMALL_CHAIN_THRESHOLD = BigInt(100_000);
 
 async function fetchLogsChunked(
   publicClient: ReturnType<typeof usePublicClient>,
   vaultAddress: `0x${string}`,
+  lastScannedBlock: string,
   onProgress?: (pct: number) => void,
-): Promise<Log[]> {
-  if (!publicClient) return [];
+): Promise<{ logs: Log[]; latestBlock: bigint }> {
+  if (!publicClient) return { logs: [], latestBlock: BigInt(0) };
 
   const latest = await publicClient.getBlockNumber();
 
   // Single-shot for tiny chains (Anvil)
   if (latest <= SMALL_CHAIN_THRESHOLD) {
-    return publicClient.getLogs({ address: vaultAddress, fromBlock: BigInt(0), toBlock: 'latest' });
+    const logs = await publicClient.getLogs({ address: vaultAddress, fromBlock: BigInt(0), toBlock: 'latest' });
+    return { logs, latestBlock: latest };
   }
 
-  // Chunked for mainnet / long-running testnets
+  // Dynamic start block based on chain to avoid scanning millions of empty blocks
+  const chainId = publicClient.chain?.id;
+  let startBlock = BigInt(0);
+  if (chainId === 84532) { // Base Sepolia
+    startBlock = BigInt(41670000); // Deployment window for today's factory
+  } else if (chainId === 11155111) { // Ethereum Sepolia
+    startBlock = BigInt(5700000);
+  } else {
+    // Default fallback to scan last 50,000 blocks (~2.3 days of history on 4s chains)
+    startBlock = latest - BigInt(50000) > BigInt(0) ? latest - BigInt(50000) : BigInt(0);
+  }
+
+  // Optimize starting block using the last scanned block from cache if available
+  let from = startBlock;
+  if (lastScannedBlock && lastScannedBlock !== '0') {
+    const parsedLast = BigInt(lastScannedBlock);
+    if (parsedLast >= startBlock) {
+      from = parsedLast + BigInt(1);
+    }
+  }
+
+  // If we are already fully synchronized up to the latest block, return early
+  if (from > latest) {
+    return { logs: [], latestBlock: latest };
+  }
+
   const allLogs: Log[] = [];
-  let from = BigInt(0);
-  const totalBlocks = Number(latest);
+  const totalBlocks = Number(latest - from) || 1;
 
   while (from <= latest) {
     const to = from + CHUNK_SIZE - BigInt(1) > latest ? latest : from + CHUNK_SIZE - BigInt(1);
     const chunk = await publicClient.getLogs({ address: vaultAddress, fromBlock: from, toBlock: to });
     allLogs.push(...chunk);
-    onProgress?.(Math.round((Number(to) / totalBlocks) * 100));
+    onProgress?.(Math.round((Number(to - startBlock) / totalBlocks) * 100));
     from = to + BigInt(1);
   }
 
-  return allLogs;
+  return { logs: allLogs, latestBlock: latest };
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -123,13 +146,47 @@ export default function Activity({ vaultAddress }: Props) {
 
     async function fetchEvents() {
       if (!publicClient) return;
-      setLoading(true);
+
+      const cacheKey = `chronos-vault-activity-${vaultAddress}-${publicClient.chain?.id || 0}`;
+      let cachedEvents: VaultEvent[] = [];
+      let lastScannedBlock = '0';
+      let lastScanTime = 0;
+
+      // 1. Instantly load from localStorage Cache to make UI immediate and completely silent
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          cachedEvents = parsed.events || [];
+          lastScannedBlock = parsed.lastScannedBlock || '0';
+          lastScanTime = parsed.lastScanTime || 0;
+          setEvents(cachedEvents);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.warn('[Activity Cache] Failed to read from localStorage:', err);
+      }
+
+      // 2. Debounce background updates: if last scan was within 15 seconds, skip RPC completely!
+      const isFresh = cachedEvents.length > 0 && (Date.now() - lastScanTime < 15000);
+      if (isFresh) {
+        return;
+      }
+
+      // If no cache, show full loading screen
+      if (cachedEvents.length === 0) {
+        setLoading(true);
+      }
       setProgress(0);
 
       try {
-        const logs = await fetchLogsChunked(publicClient, vaultAddress, (pct) => {
-          if (!cancelled) setProgress(pct);
-        });
+        // 3. Query ONLY the delta block range (lastScannedBlock + 1 -> latestBlock)
+        const { logs, latestBlock } = await fetchLogsChunked(
+          publicClient,
+          vaultAddress,
+          lastScannedBlock,
+          (pct) => { if (!cancelled) setProgress(pct); }
+        );
 
         if (cancelled) return;
 
@@ -148,23 +205,43 @@ export default function Activity({ vaultAddress }: Props) {
               decoded.push({
                 name: ((result as { eventName?: string }).eventName as string) || '',
                 args: (result.args || {}) as Record<string, unknown>,
-                blockNumber: log.blockNumber || BigInt(0),
+                blockNumber: (log.blockNumber || BigInt(0)).toString(),
                 transactionHash: (log as Log).transactionHash || '',
               });
               break;
             } catch {
-              // Not this event type — try next
+              // Not this event ABI
             }
           }
         }
 
-        decoded.sort((a, b) => Number(b.blockNumber) - Number(a.blockNumber));
-        setEvents(decoded);
-      } catch (err) {
-        console.error('Failed to fetch events:', err);
-      }
+        // 4. Merge delta results with cached results and deduplicate
+        const merged = [...decoded, ...cachedEvents];
+        const unique = Array.from(
+          new Map(merged.map(ev => [`${ev.transactionHash}-${ev.name}`, ev])).values()
+        );
 
-      if (!cancelled) setLoading(false);
+        unique.sort((a, b) => Number(b.blockNumber) - Number(a.blockNumber));
+
+        if (!cancelled) {
+          setEvents(unique);
+          setLoading(false);
+        }
+
+        // 5. Update localStorage with fresh events and new scanned block index
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify({
+            events: unique,
+            lastScannedBlock: latestBlock.toString(),
+            lastScanTime: Date.now()
+          }));
+        } catch (err) {
+          console.warn('[Activity Cache] Failed to write to localStorage:', err);
+        }
+      } catch (err) {
+        console.error('[Activity] Failed to fetch incremental logs:', err);
+        if (!cancelled) setLoading(false);
+      }
     }
 
     fetchEvents();
@@ -216,11 +293,11 @@ export default function Activity({ vaultAddress }: Props) {
                     )}
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-4)' }}>Block {ev.blockNumber.toString()}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-4)' }}>Block {ev.blockNumber}</div>
                   </div>
                   {ev.transactionHash && (
                     <a
-                      href={`https://etherscan.io/tx/${ev.transactionHash}`}
+                      href={`${publicClient?.chain?.blockExplorers?.default?.url || 'https://etherscan.io'}/tx/${ev.transactionHash}`}
                       target="_blank" rel="noopener noreferrer"
                       style={{ color: 'var(--text-4)', flexShrink: 0 }}
                     >
