@@ -1,6 +1,6 @@
 'use client';
 
-import { useReadContract, useWriteContract } from 'wagmi';
+import { useReadContract, useWriteContract, usePublicClient } from 'wagmi';
 import { VaultABI } from '@/utils/abi';
 import { useState } from 'react';
 import { ShieldCheck, ShieldOff, Plus, Copy } from 'lucide-react';
@@ -14,6 +14,7 @@ export default function Guardians({ vaultAddress }: Props) {
   const { data: guardianList, refetch } = useReadContract({ address: vaultAddress, abi: VaultABI, functionName: 'getGuardians' });
   const { data: maxGuardians } = useReadContract({ address: vaultAddress, abi: VaultABI, functionName: 'MAX_GUARDIANS' });
   const { writeContractAsync, isPending } = useWriteContract();
+  const publicClient = usePublicClient();
 
   const list = (guardianList as `0x${string}`[]) || [];
   const max = maxGuardians !== undefined ? Number(maxGuardians) : 5;
@@ -22,19 +23,23 @@ export default function Guardians({ vaultAddress }: Props) {
     if (!newGuardian) return;
     const tid = toast.loading('Adding guardian...');
     try {
-      await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'addGuardian', args: [newGuardian.trim() as `0x${string}`] });
+      const hash = await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'addGuardian', args: [newGuardian.trim() as `0x${string}`] });
+      toast.loading('Waiting for confirmation...', { id: tid });
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
       toast.success('Guardian added', { id: tid });
       setNewGuardian('');
-      setTimeout(refetch, 2500);
+      refetch();
     } catch { toast.error('Failed to add guardian', { id: tid }); }
   };
 
   const handleRemove = async (addr: `0x${string}`) => {
     const tid = toast.loading('Removing guardian...');
     try {
-      await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'removeGuardian', args: [addr] });
+      const hash = await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'removeGuardian', args: [addr] });
+      toast.loading('Waiting for confirmation...', { id: tid });
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
       toast.success('Guardian removed', { id: tid });
-      setTimeout(refetch, 2500);
+      refetch();
     } catch { toast.error('Failed to remove guardian', { id: tid }); }
   };
 
