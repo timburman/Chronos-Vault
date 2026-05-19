@@ -1,6 +1,6 @@
 'use client';
 
-import { useWriteContract } from 'wagmi';
+import { useWriteContract, usePublicClient } from 'wagmi';
 import { VaultFactoryABI, FACTORY_ADDRESS } from '@/utils/abi';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
@@ -19,17 +19,20 @@ export default function CreateVaultModal({ onSuccess }: Props) {
   const [beneficiary, setBeneficiary] = useState('');
   const [days, setDays] = useState(30);
   const { writeContractAsync, isPending } = useWriteContract();
+  const publicClient = usePublicClient();
 
   const handleCreate = async () => {
     if (!beneficiary) return;
     const tid = toast.loading('Deploying your vault...');
     try {
-      await writeContractAsync({
+      const hash = await writeContractAsync({
         address: FACTORY_ADDRESS,
         abi: VaultFactoryABI,
         functionName: 'createVault',
         args: [beneficiary.trim() as `0x${string}`, BigInt(days * 86400)],
       });
+      toast.loading('Waiting for confirmation...', { id: tid });
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
       toast.success('Vault deployed successfully', { id: tid });
       onSuccess();
     } catch {
