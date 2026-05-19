@@ -23,6 +23,8 @@ const CreateVaultModal = dynamic(() => import('@/components/dashboard/CreateVaul
 
 type Section = 'overview' | 'assets' | 'deposit' | 'withdraw' | 'activity' | 'guardians' | 'settings' | 'claim';
 
+import { usePublicClient } from 'wagmi';
+
 // ─── Guardian Mode Panel ──────────────────────────────────────────────
 
 function GuardianPanel({ vaultAddress }: { vaultAddress: `0x${string}` }) {
@@ -31,6 +33,7 @@ function GuardianPanel({ vaultAddress }: { vaultAddress: `0x${string}` }) {
   const { data: owner } = useReadContract({ address: vaultAddress, abi: VaultABI, functionName: 'owner' });
   const { data: isPaused } = useReadContract({ address: vaultAddress, abi: VaultABI, functionName: 'paused' });
   const { writeContractAsync, isPending } = useWriteContract();
+  const publicClient = usePublicClient();
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
 
@@ -49,7 +52,9 @@ function GuardianPanel({ vaultAddress }: { vaultAddress: `0x${string}` }) {
   const handlePing = async () => {
     const tid = toast.loading('Broadcasting ping...');
     try {
-      await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'ping' });
+      const hash = await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'ping' });
+      toast.loading('Waiting for confirmation...', { id: tid });
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
       toast.success('Ping confirmed — timer reset', { id: tid });
     } catch { toast.error('Ping failed — are you still a guardian?', { id: tid }); }
   };
