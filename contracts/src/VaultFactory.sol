@@ -8,7 +8,7 @@ error Unauthorized();
 contract VaultFactory {
     // Keep track of all vaults deployed by an owner
     mapping(address => address[]) public ownerVaults;
-    
+
     // Keep track of all vaults where an address is listed as beneficiary
     mapping(address => address[]) public beneficiaryVaults;
 
@@ -21,22 +21,20 @@ contract VaultFactory {
         return _createVault(_beneficiary, _timeoutPeriod, "");
     }
 
-    function createVaultWithAlias(
-        address _beneficiary,
-        uint256 _timeoutPeriod,
-        string calldata _alias
-    ) external returns (address) {
+    function createVaultWithAlias(address _beneficiary, uint256 _timeoutPeriod, string calldata _alias)
+        external
+        returns (address)
+    {
         return _createVault(_beneficiary, _timeoutPeriod, _alias);
     }
 
-    function _createVault(
-        address _beneficiary,
-        uint256 _timeoutPeriod,
-        string memory _alias
-    ) internal returns (address) {
+    function _createVault(address _beneficiary, uint256 _timeoutPeriod, string memory _alias)
+        internal
+        returns (address)
+    {
         // Deploy a new vault
         Vault newVault = new Vault(msg.sender, _beneficiary, _timeoutPeriod, address(this));
-        
+
         // Track the vault
         ownerVaults[msg.sender].push(address(newVault));
         beneficiaryVaults[_beneficiary].push(address(newVault));
@@ -45,9 +43,9 @@ contract VaultFactory {
         if (bytes(_alias).length > 0) {
             vaultAlias[address(newVault)] = _alias;
         }
-        
+
         emit VaultCreated(msg.sender, _beneficiary, address(newVault), _alias);
-        
+
         return address(newVault);
     }
 

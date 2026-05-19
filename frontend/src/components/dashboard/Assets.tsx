@@ -67,8 +67,11 @@ export default function Assets({ vaultAddress }: Props) {
   const [nftsLoading, setNftsLoading] = useState(false);
 
   const [trackedTokens, setTrackedTokens] = useState<{ address: `0x${string}`; logo?: string | null }[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try { const saved = localStorage.getItem(`cv_tokens_v2_${vaultAddress}`); return saved ? JSON.parse(saved) : []; } catch { return []; }
+    if (typeof window === 'undefined' || !window.localStorage) return [];
+    try { 
+      const saved = window.localStorage.getItem(`cv_tokens_v2_${vaultAddress}`); 
+      return saved ? JSON.parse(saved) : []; 
+    } catch { return []; }
   });
 
   useEffect(() => { fetchETHPrice().then(setEthPrice); }, []);

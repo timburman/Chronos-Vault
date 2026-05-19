@@ -22,16 +22,16 @@ const scenarios = [
 
 export default function WhenSection() {
   return (
-    <section id="when" style={{ background: 'var(--bg-alt)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
-      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '7rem 2rem' }}>
-        <div style={{ marginBottom: '3.5rem' }}>
-          <p className="section-label" style={{ marginBottom: '0.75rem' }}>When it matters</p>
-          <h2 style={{ fontFamily: 'var(--font-serif), serif', fontSize: 'clamp(1.8rem, 3.5vw, 2.4rem)', color: 'var(--text-1)' }}>
+    <section id="when" className="bg-bg-alt border-y border-border">
+      <div className="max-w-[1100px] mx-auto px-6 py-20 md:py-28">
+        <div className="mb-14">
+          <p className="section-label mb-3">When it matters</p>
+          <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-text-1">
             Built for life's unpredictable moments
           </h2>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {scenarios.map((s, i) => (
             <motion.div
               key={s.title}
@@ -39,15 +39,10 @@ export default function WhenSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-30px' }}
               transition={{ duration: 0.45, delay: i * 0.08 }}
-              style={{
-                background: 'var(--bg)',
-                border: '1px solid var(--border)',
-                borderRadius: '12px',
-                padding: '1.75rem',
-              }}
+              className="bg-bg border border-border rounded-xl p-8"
             >
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-1)', marginBottom: '0.625rem' }}>{s.title}</h3>
-              <p style={{ fontSize: '0.88rem', color: 'var(--text-3)', lineHeight: 1.75 }}>{s.body}</p>
+              <h3 className="text-lg font-semibold text-text-1 mb-3">{s.title}</h3>
+              <p className="text-[0.95rem] text-text-3 leading-relaxed">{s.body}</p>
             </motion.div>
           ))}
         </div>

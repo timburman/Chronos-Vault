@@ -1,4 +1,5 @@
 'use client';
+import { usePublicClient } from 'wagmi';
 
 import { useReadContract, useWriteContract } from 'wagmi';
 import { VaultABI } from '@/utils/abi';
@@ -23,6 +24,7 @@ export default function Settings({ vaultAddress }: Props) {
   const { data: unlockTime } = useReadContract({ address: vaultAddress, abi: VaultABI, functionName: 'beneficiaryChangeUnlockTime' });
 
   const { writeContractAsync, isPending } = useWriteContract();
+  const publicClient = usePublicClient();
 
   const timeoutDays = timeout ? (Number(timeout) / 86400).toFixed(0) : '—';
   const hasPending = pendingBen && pendingBen !== '0x0000000000000000000000000000000000000000';
@@ -34,36 +36,44 @@ export default function Settings({ vaultAddress }: Props) {
     if (!newBen) return;
     const tid = toast.loading('Proposing beneficiary change...');
     try {
-      await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'proposeBeneficiaryChange', args: [newBen.trim() as `0x${string}`] });
+      const hash = await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'proposeBeneficiaryChange', args: [newBen.trim() as `0x${string}`] });
+      toast.loading('Waiting for confirmation...', { id: tid });
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
       toast.success('Change proposed — 3-day timelock started', { id: tid });
-      setNewBen(''); setTimeout(refetchPending, 2500);
+      setNewBen(''); refetchPending();
     } catch { toast.error('Proposal failed', { id: tid }); }
   };
 
   const handleExecute = async () => {
     const tid = toast.loading('Executing beneficiary change...');
     try {
-      await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'executeBeneficiaryChange' });
+      const hash = await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'executeBeneficiaryChange' });
+      toast.loading('Waiting for confirmation...', { id: tid });
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
       toast.success('Beneficiary updated', { id: tid });
-      setTimeout(() => { refetchBen(); refetchPending(); }, 2500);
+      refetchBen(); refetchPending();
     } catch { toast.error('Execution failed', { id: tid }); }
   };
 
   const handleCancel = async () => {
     const tid = toast.loading('Cancelling...');
     try {
-      await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'cancelBeneficiaryChange' });
+      const hash = await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'cancelBeneficiaryChange' });
+      toast.loading('Waiting for confirmation...', { id: tid });
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
       toast.success('Pending change cancelled', { id: tid });
-      setTimeout(refetchPending, 2500);
+      refetchPending();
     } catch { toast.error('Cancel failed', { id: tid }); }
   };
 
   const handlePauseToggle = async () => {
     const tid = toast.loading(isPaused ? 'Unpausing...' : 'Pausing...');
     try {
-      await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: isPaused ? 'unpause' : 'pause' });
+      const hash = await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: isPaused ? 'unpause' : 'pause' });
+      toast.loading('Waiting for confirmation...', { id: tid });
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
       toast.success(isPaused ? 'Vault unpaused' : 'Vault paused', { id: tid });
-      setTimeout(refetchPause, 2500);
+      refetchPause();
     } catch { toast.error('Action failed', { id: tid }); }
   };
 
@@ -71,7 +81,9 @@ export default function Settings({ vaultAddress }: Props) {
     if (!newTimeout) return;
     const tid = toast.loading('Updating timeout...');
     try {
-      await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'changeTimeoutPeriod', args: [BigInt(parseInt(newTimeout) * 86400)] });
+      const hash = await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'changeTimeoutPeriod', args: [BigInt(parseInt(newTimeout) * 86400)] });
+      toast.loading('Waiting for confirmation...', { id: tid });
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
       toast.success(`Timeout updated to ${newTimeout} days`, { id: tid });
       setNewTimeout('');
     } catch { toast.error('Failed — minimum is 7 days', { id: tid }); }

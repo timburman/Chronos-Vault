@@ -4,9 +4,18 @@ pragma solidity ^0.8.20;
 import {Test, console2} from "forge-std/Test.sol";
 import {
     Vault,
-    Unauthorized, NotExpired, ZeroAddress, TransferFailed, ZeroAmount,
-    VaultPaused, TooManyGuardians, AlreadyGuardian, NotGuardian,
-    NoPendingChange, TimelockNotExpired, TimeoutTooShort
+    Unauthorized,
+    NotExpired,
+    ZeroAddress,
+    TransferFailed,
+    ZeroAmount,
+    VaultPaused,
+    TooManyGuardians,
+    AlreadyGuardian,
+    NotGuardian,
+    NoPendingChange,
+    TimelockNotExpired,
+    TimeoutTooShort
 } from "../src/Vault.sol";
 import {ERC20} from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import {ERC721} from "openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
@@ -129,7 +138,7 @@ contract VaultTest is Test {
 
     function test_DepositETH_ViaReceive() public {
         vm.prank(owner);
-        (bool success, ) = address(vault).call{value: 1 ether}("");
+        (bool success,) = address(vault).call{value: 1 ether}("");
         assertTrue(success);
         assertEq(address(vault).balance, 1 ether);
     }

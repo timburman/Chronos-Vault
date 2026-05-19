@@ -41,8 +41,11 @@ export default function Withdraw({ vaultAddress }: Props) {
   // Tracked tokens
   const [trackedTokens, setTrackedTokens] = useState<TrackedToken[]>([]);
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try { const saved = localStorage.getItem(`cv_tokens_v2_${vaultAddress}`); if (saved) setTrackedTokens(JSON.parse(saved)); } catch {}
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    try {
+      const saved = window.localStorage.getItem(`cv_tokens_v2_${vaultAddress}`);
+      if (saved) setTrackedTokens(JSON.parse(saved));
+    } catch {}
   }, [vaultAddress]);
 
   const { writeContractAsync } = useWriteContract();

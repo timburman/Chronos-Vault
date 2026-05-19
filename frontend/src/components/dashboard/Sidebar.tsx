@@ -12,6 +12,7 @@ interface Props {
   onChange: (s: Section) => void;
   isOwner: boolean;
   isBeneficiary: boolean;
+  isOpen?: boolean;
 }
 
 const ownerNav = [
@@ -24,13 +25,16 @@ const ownerNav = [
   { id: 'settings', label: 'Settings', Icon: Settings },
 ] as const;
 
-export default function Sidebar({ active, onChange, isOwner, isBeneficiary }: Props) {
+export default function Sidebar({ active, onChange, isOwner, isBeneficiary, isOpen }: Props) {
   return (
-    <aside style={{
-      width: '200px', flexShrink: 0, background: 'var(--bg-alt)',
-      borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column',
-      padding: '1rem 0.75rem', overflowY: 'auto', gap: '0.15rem',
-    }}>
+    <aside 
+      className={`sidebar-desktop ${isOpen ? 'open' : ''}`}
+      style={{
+        width: '200px', flexShrink: 0, background: 'var(--bg-alt)',
+        borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column',
+        padding: '1rem 0.75rem', overflowY: 'auto', gap: '0.15rem',
+      }}
+    >
       {isOwner && (
         <>
           <div style={{ fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--text-4)', padding: '0 0.75rem', marginBottom: '0.25rem', marginTop: '0.25rem' }}>

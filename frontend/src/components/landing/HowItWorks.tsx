@@ -21,16 +21,16 @@ const steps = [
 
 export default function HowItWorks() {
   return (
-    <section id="how" style={{ background: 'var(--bg-alt)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
-      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '6rem 2rem' }}>
-        <div style={{ marginBottom: '3.5rem' }}>
-          <p className="section-label" style={{ marginBottom: '0.75rem' }}>Mechanism</p>
-          <h2 style={{ fontFamily: 'var(--font-serif), serif', fontSize: 'clamp(1.8rem, 3.5vw, 2.4rem)', color: 'var(--text-1)' }}>
+    <section id="how" className="bg-bg-alt border-y border-border">
+      <div className="max-w-[1100px] mx-auto px-6 py-20 md:py-24">
+        <div className="mb-14">
+          <p className="section-label mb-3">Mechanism</p>
+          <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-text-1">
             How Chronos Vault works
           </h2>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2rem' }}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {steps.map((step, i) => (
             <motion.div
               key={step.num}
@@ -38,24 +38,13 @@ export default function HowItWorks() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-40px' }}
               transition={{ duration: 0.5, delay: i * 0.1 }}
-              style={{
-                background: 'var(--bg)',
-                border: '1px solid var(--border)',
-                borderRadius: '12px',
-                padding: '2rem',
-              }}
+              className="bg-bg border border-border rounded-xl p-8"
             >
-              <div style={{
-                fontFamily: 'var(--font-serif), serif',
-                fontSize: '2.4rem',
-                color: 'var(--accent-dim)',
-                marginBottom: '1rem',
-                lineHeight: 1,
-              }}>
+              <div className="font-serif text-4xl text-accent-dim mb-4 leading-none">
                 {step.num}
               </div>
-              <h3 style={{ fontSize: '1.1rem', color: 'var(--text-1)', marginBottom: '0.75rem', fontWeight: 600 }}>{step.title}</h3>
-              <p style={{ fontSize: '0.9rem', color: 'var(--text-3)', lineHeight: 1.75 }}>{step.body}</p>
+              <h3 className="text-lg font-semibold text-text-1 mb-3">{step.title}</h3>
+              <p className="text-sm text-text-3 leading-relaxed">{step.body}</p>
             </motion.div>
           ))}
         </div>
