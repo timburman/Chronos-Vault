@@ -1,6 +1,6 @@
 'use client';
 
-import { useReadContract, useWriteContract, useWatchContractEvent } from 'wagmi';
+import { useReadContract, useWriteContract, useWatchContractEvent, usePublicClient } from 'wagmi';
 import { VaultABI } from '@/utils/abi';
 import { formatEther } from 'viem';
 import { useState, useEffect, useCallback } from 'react';
@@ -37,16 +37,22 @@ export default function Overview({ vaultAddress }: Props) {
   const { data: balance, refetch: refetchBalance } = useReadContract({ address: vaultAddress, abi: VaultABI, functionName: 'vaultBalance' });
   const { data: lastPing, refetch: refetchPing } = useReadContract({ address: vaultAddress, abi: VaultABI, functionName: 'lastPingTime' });
   const { data: timeout } = useReadContract({ address: vaultAddress, abi: VaultABI, functionName: 'timeoutPeriod' });
-  const { data: beneficiary } = useReadContract({ address: vaultAddress, abi: VaultABI, functionName: 'beneficiary' });
+  const { data: beneficiary, refetch: refetchBeneficiary } = useReadContract({ address: vaultAddress, abi: VaultABI, functionName: 'beneficiary' });
   const { data: isPaused } = useReadContract({ address: vaultAddress, abi: VaultABI, functionName: 'paused' });
   const { data: guardianCt } = useReadContract({ address: vaultAddress, abi: VaultABI, functionName: 'guardianCount' });
 
   const { writeContractAsync, isPending: pinging } = useWriteContract();
+  const publicClient = usePublicClient();
   const { isExpired, d, h, m, s, pct } = useCountdown(lastPing as bigint, timeout as bigint);
 
-  const refetchAll = useCallback(() => { refetchPing(); refetchBalance(); }, [refetchPing, refetchBalance]);
+  const refetchAll = useCallback(() => { refetchPing(); refetchBalance(); refetchBeneficiary(); }, [refetchPing, refetchBalance, refetchBeneficiary]);
   useWatchContractEvent({ address: vaultAddress, abi: VaultABI, eventName: 'Pinged', onLogs: () => refetchAll() });
   useWatchContractEvent({ address: vaultAddress, abi: VaultABI, eventName: 'Funded', onLogs: () => refetchBalance() });
+
+  // Add forceful initial refetching of the beneficiary
+  useEffect(() => {
+    refetchBeneficiary();
+  }, [vaultAddress, refetchBeneficiary]);
 
   const ethBal = balance ? formatEther(balance as bigint) : '0';
   const usdBal = (parseFloat(ethBal) * ethPrice).toFixed(2);
@@ -55,8 +61,11 @@ export default function Overview({ vaultAddress }: Props) {
   const handlePing = async () => {
     const tid = toast.loading('Broadcasting proof of life...');
     try {
-      await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'ping' });
+      const hash = await writeContractAsync({ address: vaultAddress, abi: VaultABI, functionName: 'ping' });
+      toast.loading('Waiting for confirmation...', { id: tid });
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
       toast.success('Ping confirmed — timer reset', { id: tid });
+      refetchPing();
     } catch { toast.error('Ping failed', { id: tid }); }
   };
 
