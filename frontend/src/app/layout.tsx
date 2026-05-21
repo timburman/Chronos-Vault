@@ -17,11 +17,11 @@ const dmSerif = DM_Serif_Display({
 });
 
 export const metadata: Metadata = {
-  title: 'Chronos Vault — Trustless Inheritance Protocol',
+  title: 'LegacyForge — Trustless Inheritance Protocol',
   description:
     'A decentralized dead man\'s switch for Web3. Secure your digital estate with time-locked smart contracts. Open source, non-custodial, on-chain.',
   openGraph: {
-    title: 'Chronos Vault',
+    title: 'LegacyForge',
     description: 'Trustless inheritance for your digital assets.',
     type: 'website',
   },
