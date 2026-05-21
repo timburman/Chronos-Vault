@@ -1,4 +1,4 @@
-# Chronos Vault Analysis & Recommendations
+# LegacyForge Analysis & Recommendations
 
 After reviewing the entire stack (both the smart contracts and the frontend), the protocol is functionally solid and secure for a V2 standard. However, there are a few **critical usability gaps** in the contract and some **long-term UX scalability** issues in the frontend that should be addressed before heading to mainnet.
 

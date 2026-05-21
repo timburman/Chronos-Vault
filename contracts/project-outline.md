@@ -1,7 +1,7 @@
-### Project Title: Chronos Vault (Trustless Inheritance Protocol)
+### Project Title: LegacyForge (Trustless Inheritance Protocol)
 
 **The Elevator Pitch:**
-Chronos Vault is a decentralized, auto-executing "Dead Man’s Switch" for Web3. It solves the ultimate flaw of self-custody: if a user loses their private keys or passes away, their digital assets are lost forever. By leveraging a time-locked smart contract with a "proof-of-life" mechanism, Chronos Vault ensures that funds are trustlessly routed to a designated beneficiary if the original owner goes completely inactive, eliminating the need for centralized escrow or legal intermediaries.
+LegacyForge is a decentralized, auto-executing "Dead Man’s Switch" for Web3. It solves the ultimate flaw of self-custody: if a user loses their private keys or passes away, their digital assets are lost forever. By leveraging a time-locked smart contract with a "proof-of-life" mechanism, LegacyForge ensures that funds are trustlessly routed to a designated beneficiary if the original owner goes completely inactive, eliminating the need for centralized escrow or legal intermediaries.
 
 **The Problem:**
 True self-custody in Web3 means there is no "forgot password" button and no bank manager to hand over assets to next-of-kin. Millions of dollars in cryptocurrency are permanently inaccessible due to lost keys or unforeseen life events. Existing solutions rely on centralized third parties, which introduces counterparty risk and defeats the core ethos of decentralized finance.

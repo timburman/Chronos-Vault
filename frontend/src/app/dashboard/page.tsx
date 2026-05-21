@@ -220,7 +220,7 @@ export default function Dashboard() {
       {!isConnected ? (
         <main className="flex-1 flex flex-col items-center justify-center p-8 text-center">
           <div className="max-w-[400px] w-full p-8 bg-surface border border-border rounded-2xl shadow-sm">
-            <div className="font-serif text-2xl text-text-1 mb-3">Welcome to Chronos</div>
+            <div className="font-serif text-2xl text-text-1 mb-3">Welcome to LegacyForge</div>
             <p className="text-sm text-text-3 mb-8 leading-relaxed">
               Connect your wallet to access the vault dashboard, manage your inheritance plans, or claim assets as a beneficiary.
             </p>
@@ -296,8 +296,8 @@ function DashboardHeader({ ownerVaults, selectedVaultIdx, setSelectedVaultIdx, o
           </button>
         )}
         <Link href="/" className="no-underline flex items-center">
-          <span className="font-serif text-sm md:text-base text-text-1 tracking-tight hidden sm:inline">Chronos Vault</span>
-          <span className="font-serif text-sm text-text-1 tracking-tight sm:hidden">CV</span>
+          <span className="font-serif text-sm md:text-base text-text-1 tracking-tight hidden sm:inline">LegacyForge</span>
+          <span className="font-serif text-sm text-text-1 tracking-tight sm:hidden">LF</span>
         </Link>
         {ownerVaults.length > 1 && (
           <select value={selectedVaultIdx} onChange={(e) => setSelectedVaultIdx(Number(e.target.value))}
@@ -309,7 +309,7 @@ function DashboardHeader({ ownerVaults, selectedVaultIdx, setSelectedVaultIdx, o
       <div className="flex items-center gap-1 md:gap-6">
         <div className="hidden xl:flex gap-6">
           <a href="/#how" className="text-xs text-text-3 hover:text-text-1 no-underline transition-colors">How it works</a>
-          <a href="https://github.com/timburman/Chronos-Vault" target="_blank" rel="noopener noreferrer" className="text-xs text-text-3 hover:text-text-1 no-underline transition-colors">GitHub</a>
+          <a href="https://github.com/timburman/LegacyForge" target="_blank" rel="noopener noreferrer" className="text-xs text-text-3 hover:text-text-1 no-underline transition-colors">GitHub</a>
         </div>
         <div className="flex items-center gap-1 md:gap-3">
           <ThemeToggle />
