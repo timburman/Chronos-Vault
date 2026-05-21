@@ -147,7 +147,7 @@ export default function Activity({ vaultAddress }: Props) {
     async function fetchEvents() {
       if (!publicClient) return;
 
-      const cacheKey = `chronos-vault-activity-${vaultAddress}-${publicClient.chain?.id || 0}`;
+      const cacheKey = `legacyforge-activity-${vaultAddress}-${publicClient.chain?.id || 0}`;
       let cachedEvents: VaultEvent[] = [];
       let lastScannedBlock = '0';
       let lastScanTime = 0;
