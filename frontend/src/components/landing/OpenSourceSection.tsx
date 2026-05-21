@@ -11,12 +11,12 @@ export default function OpenSourceSection() {
             <p className="section-label mb-2">Open Source</p>
             <h3 className="font-serif text-2xl text-text-1 mb-2">Inspect every line. Fork freely.</h3>
             <p className="text-sm text-text-3 max-w-[480px] leading-relaxed">
-              Chronos Vault is MIT licensed. The smart contracts, factory, and this interface are fully open sourced on GitHub.
+              LegacyForge is MIT licensed. The smart contracts, factory, and this interface are fully open sourced on GitHub.
               Security researchers, auditors, and the curious are all welcome.
             </p>
           </div>
           <div className="shrink-0 w-full md:w-auto">
-            <a href="https://github.com/timburman/Chronos-Vault" target="_blank" rel="noopener noreferrer" className="block w-full md:w-auto">
+            <a href="https://github.com/timburman/LegacyForge" target="_blank" rel="noopener noreferrer" className="block w-full md:w-auto">
               <button className="btn-secondary w-full justify-center">View on GitHub</button>
             </a>
           </div>
@@ -42,7 +42,7 @@ export default function OpenSourceSection() {
       {/* Footer */}
       <footer className="border-t border-border py-8 px-6 bg-bg-alt">
         <div className="max-w-[1100px] mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
-          <span className="font-serif text-text-3 text-sm">Chronos Vault</span>
+          <span className="font-serif text-text-3 text-sm">LegacyForge</span>
           <span className="text-xs text-text-4">MIT License · Non-custodial · Open Source</span>
         </div>
       </footer>
