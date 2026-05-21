@@ -26,7 +26,7 @@ export default function HowItWorks() {
         <div className="mb-14">
           <p className="section-label mb-3">Mechanism</p>
           <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-text-1">
-            How Chronos Vault works
+            How LegacyForge works
           </h2>
         </div>
 
