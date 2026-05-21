@@ -2,12 +2,12 @@
 import { motion } from 'framer-motion';
 
 const rows = [
-  { feature: 'Custody of funds',        chronos: 'Self — always',    central: 'Third party holds them' },
-  { feature: 'Execution reliability',   chronos: 'Deterministic',    central: 'Manual / discretionary' },
-  { feature: 'Privacy',                 chronos: 'On-chain only',    central: 'Requires KYC / documents' },
-  { feature: 'Censorship resistance',   chronos: 'Full',             central: 'Account can be frozen' },
-  { feature: 'Cost to maintain',        chronos: 'Gas for pings',    central: 'Annual fees / legal costs' },
-  { feature: 'Trust required',          chronos: 'Zero',             central: 'Company + legal system' },
+  { feature: 'Custody of funds',        legacyForge: 'Self — always',    central: 'Third party holds them' },
+  { feature: 'Execution reliability',   legacyForge: 'Deterministic',    central: 'Manual / discretionary' },
+  { feature: 'Privacy',                 legacyForge: 'On-chain only',    central: 'Requires KYC / documents' },
+  { feature: 'Censorship resistance',   legacyForge: 'Full',             central: 'Account can be frozen' },
+  { feature: 'Cost to maintain',        legacyForge: 'Gas for pings',    central: 'Annual fees / legal costs' },
+  { feature: 'Trust required',          legacyForge: 'Zero',             central: 'Company + legal system' },
 ];
 
 export default function WhySection() {
@@ -32,7 +32,7 @@ export default function WhySection() {
             <thead>
               <tr className="bg-surface">
                 <th className="py-4 px-5 text-left text-xs font-semibold tracking-widest uppercase text-text-4 border-b border-border">Feature</th>
-                <th className="py-4 px-5 text-left text-xs font-semibold tracking-widest uppercase text-accent border-b border-border">Chronos Vault</th>
+                <th className="py-4 px-5 text-left text-xs font-semibold tracking-widest uppercase text-accent border-b border-border">LegacyForge</th>
                 <th className="py-4 px-5 text-left text-xs font-semibold tracking-widest uppercase text-text-4 border-b border-border">Centralized Alternatives</th>
               </tr>
             </thead>
@@ -43,7 +43,7 @@ export default function WhySection() {
                   <td className="py-4 px-5 text-sm text-success border-b border-border bg-success-bg font-medium">
                     <span className="flex items-center gap-2">
                       <span className="text-[10px]">●</span>
-                      {row.chronos}
+                      {row.legacyForge}
                     </span>
                   </td>
                   <td className="py-4 px-5 text-sm text-text-3 border-b border-border">{row.central}</td>
