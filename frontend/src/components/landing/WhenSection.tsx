@@ -16,7 +16,7 @@ const scenarios = [
   },
   {
     title: 'Estate Planning',
-    body: 'Sophisticated holders with significant on-chain wealth can use Chronos Vault as a living digital estate plan, designating beneficiaries and updating them without legal intermediaries.',
+    body: 'Sophisticated holders with significant on-chain wealth can use LegacyForge as a living digital estate plan, designating beneficiaries and updating them without legal intermediaries.',
   },
 ];
 
