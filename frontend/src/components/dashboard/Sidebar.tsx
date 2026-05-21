@@ -76,7 +76,7 @@ export default function Sidebar({ active, onChange, isOwner, isBeneficiary, isOp
       <div style={{ flex: 1 }} />
 
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.5rem', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
-        <a href="https://github.com/timburman/Chronos-Vault" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+        <a href="https://github.com/timburman/LegacyForge" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
           <button className="nav-link" style={{ fontSize: '0.78rem' }}>
             GitHub
           </button>
