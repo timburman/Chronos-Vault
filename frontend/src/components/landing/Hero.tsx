@@ -30,7 +30,7 @@ export default function Hero() {
           custom={2} initial="hidden" animate="show" variants={fadeUp}
           className="text-base md:text-lg text-text-2 leading-relaxed max-w-[480px] mb-10"
         >
-          Chronos Vault is an open-source, decentralized dead man's switch.
+          LegacyForge is an open-source, decentralized dead man's switch.
           Deposit your crypto, set an inactivity timeout, and your beneficiary
           automatically inherits everything if you ever disappear — no lawyers, no intermediaries, no trust required.
         </motion.p>
@@ -39,7 +39,7 @@ export default function Hero() {
           <Link href="/dashboard">
             <button className="btn-primary">Get Started</button>
           </Link>
-          <a href="https://github.com/timburman/Chronos-Vault" target="_blank" rel="noopener noreferrer">
+          <a href="https://github.com/timburman/LegacyForge" target="_blank" rel="noopener noreferrer">
             <button className="btn-secondary">View on GitHub</button>
           </a>
         </motion.div>
